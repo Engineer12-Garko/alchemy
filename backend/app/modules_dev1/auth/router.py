@@ -7,7 +7,7 @@ from app.core.security import verify_password, get_password_hash, create_access_
 from app.modules_dev1.auth.models import User
 from app.modules_dev1.auth.schemas import UserRegister, UserLogin, TokenResponse, UserProfileResponse
 
-router = APIRouter(prefix="/api/v1/auth", tags=["Auth & Profile"])
+router = APIRouter(prefix="/api/auth", tags=["Auth & Profile"])
 security = HTTPBearer(auto_error=False)
 
 

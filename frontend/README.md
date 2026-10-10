@@ -17,9 +17,19 @@ Run `npm run build` in `frontend` to run the TypeScript project build and create
 
 The tutor, generated questions, AI grading for generated questions, worked solutions, image OCR, and audio transcription require an OpenAI-compatible provider. Configure `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL` in the backend environment. Set `OPENAI_TRANSCRIPTION_MODEL` when the provider uses a separate model for `/audio/transcriptions`. The configured provider must support the API endpoints used by the backend. Missing or failed provider configuration is returned as an API error; the app does not substitute mock answers.
 
-Text, Markdown, CSV, and text-based PDF uploads are extracted by the backend. Image handwriting recognition uses the configured vision-capable chat model. For a deployed frontend, configure `VITE_API_URL` to the deployed API base URL in the frontend hosting environment, and configure the matching `FRONTEND_ORIGINS` and AI credentials on the backend.
+Text, Markdown, CSV, and text-based PDF uploads are extracted by the backend. Image handwriting recognition uses the configured vision-capable chat model.
 
-For Vercel, set `VITE_API_URL` in **Project Settings → Environment Variables** to the public FastAPI backend URL ending in `/api` (for example, `https://your-backend.example.com/api`) for each deployment environment, then redeploy. This repository's Vercel configuration builds the static frontend only; it does not route `/api` requests to the FastAPI backend. If the variable is missing, the frontend reports the configuration problem instead of displaying Vercel's generic 404 page.
+## Deploy the full app to Vercel
+
+Keep the Vercel project **Root Directory** set to the repository root. Vercel builds the React frontend and deploys the FastAPI application as a Python Function from the root `index.py`; the same Vercel domain serves both the UI and `/api` endpoints. The root `requirements.txt` installs the backend dependencies from `backend/requirements.txt`.
+
+Before using account-backed features, add these environment variables in **Vercel → Project Settings → Environment Variables** for Production (and Preview if needed):
+
+- `APP_ENV=production`
+- `JWT_SECRET` set to a private random value of at least 32 characters.
+- `DATABASE_URL` set to a persistent PostgreSQL connection URL using SQLAlchemy's `postgresql+psycopg://` scheme. SQLite on a serverless filesystem is not persistent and must not be used for real accounts.
+
+For tutor, generated-question, AI grading, worked-solution, image OCR, and audio transcription features, also set `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL`; set `OPENAI_TRANSCRIPTION_MODEL` if the provider uses a different transcription model. Redeploy after adding or changing environment variables. The frontend calls the API on the same Vercel domain by default, so `VITE_API_URL` is not required for this deployment.
 
 ## Implemented API-backed workflows
 

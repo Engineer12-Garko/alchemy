@@ -1,7 +1,9 @@
 import logging
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.api import router as alchemy_router
 from app.core.config import get_settings
@@ -17,6 +19,7 @@ from app.modules_dev1.scheduler.router import router as scheduler_router
 
 settings = get_settings()
 logger = logging.getLogger("uvicorn")
+frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 app = FastAPI(
     title="Alchemy Academic Studio API",
@@ -60,3 +63,22 @@ Base.metadata.create_all(bind=engine)
 @app.get("/health", tags=["Health"])
 def health_check() -> dict[str, str]:
     return {"status": "healthy", "service": "alchemy", "dev1_engines": "operational"}
+
+
+@app.get("/{path:path}", include_in_schema=False)
+def serve_frontend(path: str) -> FileResponse:
+    if path == "api" or path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
+    if not frontend_dist.is_dir():
+        raise HTTPException(status_code=404, detail="Frontend build not found")
+
+    root = frontend_dist.resolve()
+    requested = (root / path).resolve()
+    try:
+        requested.relative_to(root)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail="File not found") from error
+
+    if requested.is_file():
+        return FileResponse(requested)
+    return FileResponse(root / "index.html")

@@ -3,7 +3,7 @@
   "buildCommand": "npm ci --prefix frontend && npm run build --prefix frontend",
   "functions": {
     "api/index.py": {
-      "includeFiles": "frontend/dist/**"
+      "runtime": "python3.11"
     }
   }
 }

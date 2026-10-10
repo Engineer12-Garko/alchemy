@@ -7,9 +7,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import httpx
-from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -17,30 +15,20 @@ from sqlalchemy.orm import Session
 from pypdf import PdfReader
 
 from app.core.config import get_settings
-from app.core.database import Base, engine, get_db
-from app.core.security import create_access_token, decode_access_token, hash_password, verify_password
-from app.models import Course, LearningEvent, Material, PlannerTask, ReviewItem, StudyModuleSession, TutorMessage, User, utc_now
+from app.core.database import get_db
+from app.core.security import create_access_token, get_password_hash, verify_password
+from app.models import Course, LearningEvent, Material, PlannerTask, ReviewItem, StudyModuleSession, TutorMessage, User, UserPreferences, utc_now
+from app.modules_dev1.auth.router import get_current_user as require_user
 
 settings = get_settings()
-Base.metadata.create_all(bind=engine)
 
 
 def as_utc(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
-app = FastAPI(title="Alchemy Academic Studio API", version="1.0.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
-)
-
-bearer = HTTPBearer(auto_error=False)
+router = APIRouter()
 Db = Annotated[Session, Depends(get_db)]
-Credentials = Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]
 
 
 class RegisterRequest(BaseModel):
@@ -126,32 +114,22 @@ class TutorRequest(BaseModel):
     material_id: int | None = None
 
 
-def get_current_user(credentials: Credentials, db: Db) -> User:
-    if credentials is None:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    subject = decode_access_token(credentials.credentials)
-    if subject is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired access token")
-    try:
-        user_id = int(subject)
-    except ValueError as error:
-        raise HTTPException(status_code=401, detail="Invalid access token subject") from error
-    user = db.get(User, user_id)
-    if user is None:
-        raise HTTPException(status_code=401, detail="Account no longer exists")
-    return user
+CurrentUser = Annotated[User, Depends(require_user)]
 
 
-CurrentUser = Annotated[User, Depends(get_current_user)]
-
-
-def check_course(db: Session, user_id: int, course_id: int | None) -> None:
+def check_course(db: Session, user_id: str, course_id: int | None) -> None:
     if course_id is not None and db.scalar(select(Course.id).where(Course.id == course_id, Course.owner_id == user_id)) is None:
         raise HTTPException(status_code=404, detail="Course not found")
 
 
-def user_payload(user: User) -> dict[str, Any]:
-    return {"id": user.id, "email": user.email, "display_name": user.display_name, "preferences": user.preferences or {}}
+def user_payload(user: User, db: Session) -> dict[str, Any]:
+    preferences = db.get(UserPreferences, user.id)
+    return {
+        "id": user.id,
+        "email": user.email,
+        "display_name": user.full_name,
+        "preferences": preferences.preferences if preferences else {},
+    }
 
 
 def configured_ai() -> tuple[str, str, str]:
@@ -183,14 +161,18 @@ async def provider_chat(messages: list[dict[str, Any]], temperature: float = 0.3
     return text.strip()
 
 
-@app.get("/api/health")
+@router.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/api/auth/register", status_code=201)
+@router.post("/api/auth/register", status_code=201)
 def register(payload: RegisterRequest, db: Db) -> dict[str, Any]:
-    user = User(email=str(payload.email).lower(), password_hash=hash_password(payload.password), display_name=payload.display_name.strip())
+    user = User(
+        email=str(payload.email).lower(),
+        hashed_password=get_password_hash(payload.password),
+        full_name=payload.display_name.strip(),
+    )
     db.add(user)
     try:
         db.commit()
@@ -198,41 +180,47 @@ def register(payload: RegisterRequest, db: Db) -> dict[str, Any]:
         db.rollback()
         raise HTTPException(status_code=409, detail="An account with this email already exists") from error
     db.refresh(user)
-    return {"access_token": create_access_token(str(user.id)), "token_type": "bearer", "user": user_payload(user)}
+    token = create_access_token({"sub": user.id, "email": user.email})
+    return {"access_token": token, "token_type": "bearer", "user": user_payload(user, db)}
 
 
-@app.post("/api/auth/login")
+@router.post("/api/auth/login")
 def login(payload: LoginRequest, db: Db) -> dict[str, Any]:
     user = db.scalar(select(User).where(User.email == str(payload.email).lower()))
-    if user is None or not verify_password(payload.password, user.password_hash):
+    if user is None or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Email or password is incorrect")
-    return {"access_token": create_access_token(str(user.id)), "token_type": "bearer", "user": user_payload(user)}
+    token = create_access_token({"sub": user.id, "email": user.email})
+    return {"access_token": token, "token_type": "bearer", "user": user_payload(user, db)}
 
 
-@app.get("/api/auth/me")
-def auth_me(user: CurrentUser) -> dict[str, Any]:
-    return user_payload(user)
+@router.get("/api/auth/me")
+def auth_me(user: CurrentUser, db: Db) -> dict[str, Any]:
+    return user_payload(user, db)
 
 
-@app.patch("/api/auth/preferences")
+@router.patch("/api/auth/preferences")
 def update_preferences(payload: PreferencesRequest, user: CurrentUser, db: Db) -> dict[str, Any]:
-    user.display_name = payload.display_name.strip()
-    user.preferences = {
+    user.full_name = payload.display_name.strip()
+    preferences = db.get(UserPreferences, user.id)
+    if preferences is None:
+        preferences = UserPreferences(user_id=user.id)
+        db.add(preferences)
+    preferences.preferences = {
         "weekly_goal_hours": payload.weekly_goal_hours,
         "preferred_modality": payload.preferred_modality,
         "reminders_enabled": payload.reminders_enabled,
     }
     db.commit()
-    return user_payload(user)
+    return user_payload(user, db)
 
 
-@app.get("/api/courses")
+@router.get("/api/courses")
 def list_courses(user: CurrentUser, db: Db) -> list[dict[str, Any]]:
     rows = db.scalars(select(Course).where(Course.owner_id == user.id).order_by(Course.code)).all()
     return [{"id": row.id, "code": row.code, "name": row.name, "subject": row.subject} for row in rows]
 
 
-@app.post("/api/courses", status_code=201)
+@router.post("/api/courses", status_code=201)
 def create_course(payload: CourseRequest, user: CurrentUser, db: Db) -> dict[str, Any]:
     row = Course(owner_id=user.id, code=payload.code.strip().upper(), name=payload.name.strip(), subject=payload.subject.strip())
     db.add(row)
@@ -245,7 +233,7 @@ def create_course(payload: CourseRequest, user: CurrentUser, db: Db) -> dict[str
     return {"id": row.id, "code": row.code, "name": row.name, "subject": row.subject}
 
 
-@app.get("/api/learner/mastery")
+@router.get("/api/learner/mastery")
 def learner_mastery(user: CurrentUser, db: Db) -> list[dict[str, Any]]:
     events = db.scalars(select(LearningEvent).where(LearningEvent.owner_id == user.id, LearningEvent.score.is_not(None))).all()
     scores: dict[str, list[float]] = {}
@@ -255,7 +243,7 @@ def learner_mastery(user: CurrentUser, db: Db) -> list[dict[str, Any]]:
     return [{"concept": key, "mastery": round(sum(values) / len(values), 1), "attempts": len(values)} for key, values in sorted(scores.items())]
 
 
-@app.post("/api/learner/events", status_code=201)
+@router.post("/api/learner/events", status_code=201)
 def create_event(payload: EventRequest, user: CurrentUser, db: Db) -> dict[str, Any]:
     check_course(db, user.id, payload.course_id)
     row = LearningEvent(owner_id=user.id, **payload.model_dump())
@@ -265,7 +253,7 @@ def create_event(payload: EventRequest, user: CurrentUser, db: Db) -> dict[str, 
     return {"id": row.id, "concept": row.concept, "created_at": row.created_at}
 
 
-@app.get("/api/diagnosis")
+@router.get("/api/diagnosis")
 def get_diagnosis(user: CurrentUser, db: Db, course_id: int | None = None) -> dict[str, Any]:
     check_course(db, user.id, course_id)
     query = select(LearningEvent).where(LearningEvent.owner_id == user.id)
@@ -290,7 +278,7 @@ def get_diagnosis(user: CurrentUser, db: Db, course_id: int | None = None) -> di
     return {"attempts": len(events), "mastery": round(sum(assessed) / len(assessed), 1) if assessed else None, "concepts": concepts}
 
 
-@app.post("/api/diagnosis/placement")
+@router.post("/api/diagnosis/placement")
 def submit_placement(payload: PlacementRequest, user: CurrentUser, db: Db) -> dict[str, Any]:
     check_course(db, user.id, payload.course_id)
     if any(not isinstance(answer.get("correct"), bool) for answer in payload.answers):
@@ -306,7 +294,7 @@ def submit_placement(payload: PlacementRequest, user: CurrentUser, db: Db) -> di
     return {"score": score, "answered": len(payload.answers), "placement": "advanced" if score >= 80 else "intermediate" if score >= 50 else "foundational"}
 
 
-@app.post("/api/method-router/select")
+@router.post("/api/method-router/select")
 def select_method(payload: MethodRequest, user: CurrentUser, db: Db) -> dict[str, str]:
     error = (payload.recent_error or "").lower()
     preference = (payload.learner_preference or "").lower()
@@ -323,7 +311,7 @@ def select_method(payload: MethodRequest, user: CurrentUser, db: Db) -> dict[str
     return {"method": method, "rationale": rationale, "concept": payload.concept}
 
 
-@app.get("/api/method-modules/{method}")
+@router.get("/api/method-modules/{method}")
 def get_method_module(method: str) -> dict[str, Any]:
     catalog = {
         "visual": [{"id": "map", "title": "Map every dependency", "locked": False}, {"id": "differentiate", "title": "Differentiate each branch", "locked": True}, {"id": "combine", "title": "Combine branch contributions", "locked": True}],
@@ -336,7 +324,7 @@ def get_method_module(method: str) -> dict[str, Any]:
     return {"method": method, "steps": catalog[method]}
 
 
-@app.post("/api/method-modules/{method}/sessions", status_code=201)
+@router.post("/api/method-modules/{method}/sessions", status_code=201)
 def create_module_session(method: str, user: CurrentUser, db: Db) -> dict[str, Any]:
     module = get_method_module(method)
     session = StudyModuleSession(id=secrets.token_urlsafe(18), owner_id=user.id, method=method)
@@ -345,7 +333,7 @@ def create_module_session(method: str, user: CurrentUser, db: Db) -> dict[str, A
     return {"session_id": session.id, "method": method, "steps": module["steps"], "completed_steps": [], "solution_unlocked": False}
 
 
-@app.post("/api/method-modules/sessions/{session_id}/steps/{step_id}")
+@router.post("/api/method-modules/sessions/{session_id}/steps/{step_id}")
 def submit_module_step(session_id: str, step_id: str, payload: StudyStepAttempt, user: CurrentUser, db: Db) -> dict[str, Any]:
     session = db.scalar(select(StudyModuleSession).where(StudyModuleSession.id == session_id, StudyModuleSession.owner_id == user.id))
     if session is None:
@@ -356,6 +344,9 @@ def submit_module_step(session_id: str, step_id: str, payload: StudyStepAttempt,
         raise HTTPException(status_code=404, detail="Study step not found")
     completed = list(session.completed_steps or [])
     if step_id not in completed:
+        next_step = next((step["id"] for step in module["steps"] if step["id"] not in completed), None)
+        if step_id != next_step:
+            raise HTTPException(status_code=409, detail="Complete the previous study step first")
         completed.append(step_id)
     session.completed_steps = completed
     session.has_attempt = True
@@ -364,7 +355,7 @@ def submit_module_step(session_id: str, step_id: str, payload: StudyStepAttempt,
     return {"session_id": session.id, "completed_steps": completed, "solution_unlocked": session.has_attempt}
 
 
-@app.get("/api/method-modules/sessions/{session_id}/solution")
+@router.get("/api/method-modules/sessions/{session_id}/solution")
 async def get_module_solution(session_id: str, user: CurrentUser, db: Db) -> dict[str, str]:
     session = db.scalar(select(StudyModuleSession).where(StudyModuleSession.id == session_id, StudyModuleSession.owner_id == user.id))
     if session is None:
@@ -378,17 +369,16 @@ async def get_module_solution(session_id: str, user: CurrentUser, db: Db) -> dic
     return {"solution": response}
 
 
-@app.get("/api/quizzes/sample")
+@router.get("/api/quizzes/sample")
 def sample_quiz(user: CurrentUser) -> dict[str, Any]:
     return {
         "id": "chain-rule-001",
         "concept": "Multivariable chain rule",
         "prompt": "Let z = x^2 + y^2, x = s cos(t), y = s sin(t). Find ∂z/∂s at s=1, t=0. Show both dependency branches.",
-        "expected_value": 2,
     }
 
 
-@app.post("/api/quizzes/grade")
+@router.post("/api/quizzes/grade")
 async def grade_quiz(payload: QuizGradeRequest, user: CurrentUser, db: Db) -> dict[str, Any]:
     check_course(db, user.id, payload.course_id)
     if payload.expected_answer is None:
@@ -438,13 +428,13 @@ async def grade_quiz(payload: QuizGradeRequest, user: CurrentUser, db: Db) -> di
     return {"score": score, "correct": score >= 70, "value_correct": value_correct, "reasoning_complete": reasoning_complete, "feedback": feedback}
 
 
-@app.get("/api/scheduler/reviews")
+@router.get("/api/scheduler/reviews")
 def get_reviews(user: CurrentUser, db: Db) -> list[dict[str, Any]]:
     rows = db.scalars(select(ReviewItem).where(ReviewItem.owner_id == user.id).order_by(ReviewItem.due_at)).all()
     return [{"id": r.id, "concept": r.concept, "due_at": as_utc(r.due_at), "interval_days": r.interval_days, "repetitions": r.repetitions, "last_score": r.last_score} for r in rows]
 
 
-@app.post("/api/scheduler/reviews")
+@router.post("/api/scheduler/reviews")
 def submit_review(payload: ReviewRequest, user: CurrentUser, db: Db) -> dict[str, Any]:
     check_course(db, user.id, payload.course_id)
     item = db.scalar(select(ReviewItem).where(ReviewItem.owner_id == user.id, ReviewItem.concept == payload.concept))
@@ -465,13 +455,13 @@ def submit_review(payload: ReviewRequest, user: CurrentUser, db: Db) -> dict[str
     return {"concept": item.concept, "interval_days": item.interval_days, "due_at": as_utc(item.due_at), "ease_factor": item.ease_factor}
 
 
-@app.get("/api/planner/tasks")
+@router.get("/api/planner/tasks")
 def list_tasks(user: CurrentUser, db: Db) -> list[dict[str, Any]]:
     tasks = db.scalars(select(PlannerTask).where(PlannerTask.owner_id == user.id).order_by(PlannerTask.due_at)).all()
     return [{"id": t.id, "title": t.title, "description": t.description, "due_at": as_utc(t.due_at), "duration_minutes": t.duration_minutes, "completed": t.completed, "course_id": t.course_id} for t in tasks]
 
 
-@app.post("/api/planner/tasks", status_code=201)
+@router.post("/api/planner/tasks", status_code=201)
 def create_task(payload: TaskRequest, user: CurrentUser, db: Db) -> dict[str, Any]:
     check_course(db, user.id, payload.course_id)
     task = PlannerTask(owner_id=user.id, title=payload.title.strip(), description=payload.description, due_at=payload.due_at, duration_minutes=payload.duration_minutes, course_id=payload.course_id)
@@ -481,7 +471,7 @@ def create_task(payload: TaskRequest, user: CurrentUser, db: Db) -> dict[str, An
     return {"id": task.id, "title": task.title, "description": task.description, "due_at": as_utc(task.due_at), "duration_minutes": task.duration_minutes, "completed": task.completed, "course_id": task.course_id}
 
 
-@app.patch("/api/planner/tasks/{task_id}")
+@router.patch("/api/planner/tasks/{task_id}")
 def update_task(task_id: int, payload: TaskCompletionRequest, user: CurrentUser, db: Db) -> dict[str, Any]:
     task = db.scalar(select(PlannerTask).where(PlannerTask.id == task_id, PlannerTask.owner_id == user.id))
     if task is None:
@@ -491,7 +481,7 @@ def update_task(task_id: int, payload: TaskCompletionRequest, user: CurrentUser,
     return {"id": task.id, "completed": task.completed}
 
 
-@app.delete("/api/planner/tasks/{task_id}", status_code=204)
+@router.delete("/api/planner/tasks/{task_id}", status_code=204)
 def remove_task(task_id: int, user: CurrentUser, db: Db) -> None:
     task = db.scalar(select(PlannerTask).where(PlannerTask.id == task_id, PlannerTask.owner_id == user.id))
     if task is None:
@@ -500,7 +490,7 @@ def remove_task(task_id: int, user: CurrentUser, db: Db) -> None:
     db.commit()
 
 
-@app.get("/api/progress")
+@router.get("/api/progress")
 def get_progress(user: CurrentUser, db: Db) -> dict[str, Any]:
     events = db.scalars(select(LearningEvent).where(LearningEvent.owner_id == user.id)).all()
     groups: dict[str, list[float]] = {}
@@ -515,13 +505,13 @@ def get_progress(user: CurrentUser, db: Db) -> dict[str, Any]:
     }
 
 
-@app.get("/api/materials")
+@router.get("/api/materials")
 def list_materials(user: CurrentUser, db: Db) -> list[dict[str, Any]]:
     rows = db.scalars(select(Material).where(Material.owner_id == user.id).order_by(Material.created_at.desc())).all()
     return [{"id": row.id, "filename": row.filename, "content_type": row.content_type, "byte_size": row.byte_size, "created_at": row.created_at} for row in rows]
 
 
-@app.post("/api/materials", status_code=201)
+@router.post("/api/materials", status_code=201)
 async def upload_material(user: CurrentUser, db: Db, file: UploadFile = File(...), course_id: int | None = None) -> dict[str, Any]:
     check_course(db, user.id, course_id)
     content = await file.read(settings.max_upload_mb * 1024 * 1024 + 1)
@@ -548,7 +538,7 @@ async def upload_material(user: CurrentUser, db: Db, file: UploadFile = File(...
     return {"id": row.id, "filename": filename, "characters_extracted": len(extracted_text)}
 
 
-@app.get("/api/materials/{material_id}")
+@router.get("/api/materials/{material_id}")
 def get_material(material_id: int, user: CurrentUser, db: Db) -> dict[str, Any]:
     row = db.scalar(select(Material).where(Material.id == material_id, Material.owner_id == user.id))
     if row is None:
@@ -556,7 +546,7 @@ def get_material(material_id: int, user: CurrentUser, db: Db) -> dict[str, Any]:
     return {"id": row.id, "filename": row.filename, "text": row.extracted_text}
 
 
-@app.post("/api/tutor/chat")
+@router.post("/api/tutor/chat")
 async def tutor_chat(payload: TutorRequest, user: CurrentUser, db: Db) -> dict[str, Any]:
     conversation_id = payload.conversation_id or secrets.token_urlsafe(18)
     previous = db.scalars(
@@ -581,13 +571,13 @@ async def tutor_chat(payload: TutorRequest, user: CurrentUser, db: Db) -> dict[s
     return {"conversation_id": conversation_id, "reply": reply}
 
 
-@app.get("/api/tutor/conversations/{conversation_id}")
+@router.get("/api/tutor/conversations/{conversation_id}")
 def tutor_history(conversation_id: str, user: CurrentUser, db: Db) -> list[dict[str, Any]]:
     rows = db.scalars(select(TutorMessage).where(TutorMessage.owner_id == user.id, TutorMessage.conversation_id == conversation_id).order_by(TutorMessage.created_at)).all()
     return [{"role": row.role, "content": row.content, "created_at": row.created_at} for row in rows]
 
 
-@app.get("/api/tutor/conversations")
+@router.get("/api/tutor/conversations")
 def list_tutor_conversations(user: CurrentUser, db: Db) -> list[str]:
     rows = db.scalars(
         select(TutorMessage.conversation_id)
@@ -598,7 +588,7 @@ def list_tutor_conversations(user: CurrentUser, db: Db) -> list[str]:
     return list(dict.fromkeys(rows))[:20]
 
 
-@app.post("/api/ai/generate-question")
+@router.post("/api/ai/generate-question")
 async def generate_question(user: CurrentUser, concept: Annotated[str, Query(min_length=1, max_length=200)]) -> dict[str, str]:
     response = await provider_chat([
         {"role": "system", "content": "Return a JSON object with non-empty string fields prompt, concept, answer, explanation. No markdown."},
@@ -613,7 +603,7 @@ async def generate_question(user: CurrentUser, concept: Annotated[str, Query(min
     return data
 
 
-@app.post("/api/multimodal/ocr")
+@router.post("/api/multimodal/ocr")
 async def recognize_image(user: CurrentUser, file: UploadFile = File(...)) -> dict[str, str]:
     content = await file.read(settings.max_upload_mb * 1024 * 1024 + 1)
     if len(content) > settings.max_upload_mb * 1024 * 1024:
@@ -629,7 +619,7 @@ async def recognize_image(user: CurrentUser, file: UploadFile = File(...)) -> di
     return {"transcription": transcription}
 
 
-@app.post("/api/multimodal/transcribe")
+@router.post("/api/multimodal/transcribe")
 async def transcribe_audio(user: CurrentUser, file: UploadFile = File(...)) -> dict[str, str]:
     base_url, key, model = configured_ai()
     content = await file.read(settings.max_upload_mb * 1024 * 1024 + 1)
@@ -657,6 +647,7 @@ async def transcribe_audio(user: CurrentUser, file: UploadFile = File(...)) -> d
     return {"transcription": text.strip()}
 
 
-@app.get("/api/settings")
-def get_settings_endpoint(user: CurrentUser) -> dict[str, Any]:
-    return user.preferences or {}
+@router.get("/api/settings")
+def get_settings_endpoint(user: CurrentUser, db: Db) -> dict[str, Any]:
+    preferences = db.get(UserPreferences, user.id)
+    return preferences.preferences if preferences else {}

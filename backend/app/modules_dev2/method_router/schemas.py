@@ -58,3 +58,9 @@ class DiagnosticGapsResponse(BaseModel):
     cluster_title: str
     diagnosis: CognitiveDiagnosis
     router_intervention: MethodRouterPayload
+
+
+class GapAnalysisRequest(BaseModel):
+    student_id: str
+    topic_id: str
+    recent_attempts: List[dict]

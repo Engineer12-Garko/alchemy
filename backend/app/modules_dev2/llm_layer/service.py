@@ -18,9 +18,15 @@ class LLMEngine:
             formatted_prompt = SOCRATIC_TUTOR_PROMPT.format(
                 student_prompt=request.prompt
             )
-
-        # Simulating the API response for the scaffold
-        simulated_text = f"[Simulated AI Response based on role: {request.system_role}]\n\nBased on your input: '{request.prompt}', the next logical step is to isolate the variable."
+        
+        # Simulated API response for scaffold/demo mode.
+        # To use a real AI provider, uncomment the client block above and
+        # replace the simulated_text block with: response = client.chat.completions.create(...)
+        simulated_text = (
+            f"[SIMULATED AI RESPONSE] Based on your input: '{request.prompt}', "
+            f"the next logical step is to isolate the variable. "
+            f"[Role: {request.system_role}]"
+        )
         
         return LLMResponse(
             text=simulated_text,

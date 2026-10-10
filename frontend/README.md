@@ -4,7 +4,7 @@
 
 1. Install the backend dependencies with `python -m pip install -r backend/requirements.txt`.
 2. Copy `backend/.env.example` to `backend/.env`. Set a private `JWT_SECRET` before deployment.
-3. From `backend`, run `uvicorn app.main:app --reload`. The development database defaults to a local SQLite file.
+3. From `backend`, run `uvicorn app.main:app --reload`. The development database defaults to `alchemy_local.db`; it is separate from the legacy `synapse.db` file, which is left untouched.
 4. Copy `frontend/.env.example` to `frontend/.env.local`. Set `VITE_API_URL` to the backend API base URL (for example, `http://127.0.0.1:8000/api`).
 5. From `frontend`, run `npm install` and `npm run dev`.
 6. Open `http://localhost:5173/auth`. Choose **Create an account** below the sign-in form, enter your name, email, and a password of at least 8 characters, then choose **Create account**. After registration, Alchemy signs you in automatically. On later visits, use the same email and password with **Sign in**.
@@ -21,7 +21,7 @@ Text, Markdown, CSV, and text-based PDF uploads are extracted by the backend. Im
 
 ## Deploy the full app to Vercel
 
-Keep the Vercel project **Root Directory** set to the repository root. Vercel builds the React frontend and deploys the FastAPI application as a Python Function from `api/index.py`; the same Vercel domain serves both the UI and `/api` endpoints. The root `requirements.txt` installs the backend dependencies from `backend/requirements.txt`.
+Keep the Vercel project **Root Directory** set to the repository root. Vercel builds the React frontend and deploys the FastAPI application as a Python Function from the root `index.py`; the same Vercel domain serves both the UI and `/api` endpoints. The root `requirements.txt` installs the backend dependencies from `backend/requirements.txt`.
 
 Before using account-backed features, add these environment variables in **Vercel → Project Settings → Environment Variables** for Production (and Preview if needed):
 

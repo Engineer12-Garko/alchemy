@@ -169,14 +169,15 @@ The current product is learner-facing. Teacher, administrator, organization, bil
 9. **AI journey:** with valid provider configuration, verify tutor, generation, grading, solution, OCR, and transcription flows; with missing or failing configuration, verify explicit errors and no success-shaped records.
 10. **Session journey:** expire a token, make an API request, and verify the token is cleared and the learner is returned to sign-in.
 
-## 6. Critical review: confirmed implementation gaps
+## 6. Critical review: implementation gaps and fixes
 
-The following issues were confirmed by inspection of the current backend and frontend source. They are requirements to fix, not claims that fixes have already been implemented.
+Quiz answer keys are now stored server-side and scoped to the authenticated owner. The sample and generated-question endpoints return only the opaque question ID, concept, and prompt; grading loads the reference answer from the owned server record. The quiz UI and grading-result shape remain unchanged.
+
+The following remaining issues were confirmed by inspection of the backend and frontend source:
 
 | Priority | Area | Current behavior | Required outcome |
 |---|---|---|---|
-| P1 | Quiz answer integrity | `GET /api/quizzes/sample` returns an `expected_value` alongside the question. It is not rendered by the current quiz component, but it is present in the HTTP response and can be read by the learner. | Do not return the reference answer to the learner before grading. |
-| P1 | Generated quiz grading | `POST /api/quizzes/grade` accepts `expected_answer` and `explanation` from the client and uses those values as the grading reference. The generated-question flow holds the reference only in frontend state. | Persist trusted question data server-side and grade by an opaque question ID; ignore or reject client-supplied reference answers. |
+| P1 | Modular assessment integrity | `/api/v1/assessment/submit` accepts the canonical answer and per-step correctness flags from the client, so a caller can fabricate assessment outcomes. | Grade against server-owned question data and evaluate submitted work server-side. |
 | P1 | Study-step enforcement | The step endpoint checks that a step ID exists, but does not require earlier steps. Any valid step marks `has_attempt=True`, which unlocks the solution endpoint. | Enforce ordered prerequisites on the backend and unlock solutions only after the required attempt steps. |
 | P2 | Session expiry UX | The route guard checks only whether a token exists in session storage. API 401 responses do not clear the token or redirect to sign-in. | Clear invalid/expired tokens and transition the frontend to sign-in when the API returns 401. |
 | P2 | Schema upgrades | API import calls `Base.metadata.create_all()`. The backend has no configured migration revisions, so an existing database is not safely upgraded when models change. | Add and use versioned schema migrations before production schema changes. |

@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.packages/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*~
+.pytest_cache/
+.tox/
+venv/
+env/
+backend/.env
+
+# Environment variables
+.env
+
+# Build artifacts
+backend/dist/
+backend/build/
+frontend/dist/
+frontend/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AI provider configs
+backend/app/.env

@@ -1,22 +1,32 @@
+import os
 from functools import lru_cache
-
+from pathlib import Path
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Resolve .env file path: prefer directory where this module lives, then project root
+ _ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+
+
 class Settings(BaseSettings):
     app_env: str = "development"
-    database_url: str = "sqlite:///./synapse.db"
+    database_url: str = "sqlite:///./alchemy_local.db"
     jwt_secret: str = "development-only-change-me"
     jwt_expire_minutes: int = 60 * 24 * 7
     frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # OpenAI configuration
     openai_base_url: str = ""
     openai_api_key: str = ""
     openai_model: str = ""
     openai_transcription_model: str = ""
+    # Gemini configuration (alternative AI provider)
+    gemini_api_key: str = ""
+    gemini_model: str = ""
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
     max_upload_mb: int = 20
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_ENV_PATH), env_file_encoding="utf-8", extra="ignore")
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":

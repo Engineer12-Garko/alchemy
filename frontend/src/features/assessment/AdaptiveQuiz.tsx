@@ -7,8 +7,6 @@ interface PracticeQuestion {
   id: string
   concept: string
   prompt: string
-  expected_answer?: string
-  explanation?: string
 }
 
 interface QuizResult {
@@ -47,11 +45,11 @@ export default function AdaptiveQuiz() {
     setError('')
     setResult(null)
     try {
-      const generated = await apiRequest<{ prompt: string; concept: string; answer: string; explanation: string }>(
+      const generated = await apiRequest<PracticeQuestion>(
         `/ai/generate-question?concept=${encodeURIComponent(concept)}`,
         { method: 'POST' },
       )
-      setQuestion({ id: `generated-${Date.now()}`, concept: generated.concept, prompt: generated.prompt, expected_answer: generated.answer, explanation: generated.explanation })
+      setQuestion(generated)
       setAnswer('')
       setWork('')
     } catch (reason) {
@@ -69,7 +67,7 @@ export default function AdaptiveQuiz() {
     try {
       const grade = await apiRequest<QuizResult>('/quizzes/grade', {
         method: 'POST',
-        body: JSON.stringify({ concept: question.concept, prompt: question.prompt, answer, work, expected_answer: question.expected_answer, explanation: question.explanation }),
+        body: JSON.stringify({ question_id: question.id, answer, work }),
       })
       setResult(grade)
     } catch (reason) {

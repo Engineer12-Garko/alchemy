@@ -56,6 +56,19 @@ class LearningEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
 
 
+class QuizQuestion(Base):
+    __tablename__ = "quiz_questions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    concept: Mapped[str] = mapped_column(String(200))
+    prompt: Mapped[str] = mapped_column(Text)
+    expected_answer: Mapped[str] = mapped_column(Text)
+    explanation: Mapped[str] = mapped_column(Text, default="")
+    grading_mode: Mapped[str] = mapped_column(String(40), default="ai")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+
+
 class ReviewItem(Base):
     __tablename__ = "review_items"
 

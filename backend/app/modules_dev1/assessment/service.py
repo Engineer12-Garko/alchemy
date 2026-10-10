@@ -20,6 +20,12 @@ class AssessmentSubmission(BaseModel):
     step_evaluations: List[StepEvaluation]
     turnaround_seconds: int
 
+    @validator('step_evaluations')
+    def require_at_least_one_step(cls, v):
+        if len(v) == 0:
+            raise ValueError('At least one step evaluation is required')
+        return v
+
 
 class AssessmentResult(BaseModel):
     question_id: str

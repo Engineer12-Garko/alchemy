@@ -16,6 +16,7 @@ from app.modules_dev1.progress.router import router as progress_router
 from app.modules_dev2.method_router.router import router as diagnosis_router
 from app.modules_dev2.method_modules.router import router as method_modules_router
 from app.modules_dev2.llm_layer.router import router as llm_router
+from app.modules_dev2.multimodal.router import router as multimodal_router
 
 # Create database tables for registered SQLAlchemy models
 Base.metadata.create_all(bind=engine)
@@ -46,6 +47,7 @@ app.include_router(progress_router)
 app.include_router(diagnosis_router)
 app.include_router(method_modules_router)
 app.include_router(llm_router)
+app.include_router(multimodal_router)
 
 # Developer 2 modules will mount below when ready:
 # from app.modules_dev2.method_router.router import router as method_router

@@ -11,7 +11,11 @@ from app.modules_dev1.scheduler.router import router as scheduler_router
 from app.modules_dev1.assessment.router import router as assessment_router
 from app.modules_dev1.planner.router import router as planner_router
 from app.modules_dev1.progress.router import router as progress_router
+
+#Developer 2 Routers
 from app.modules_dev2.method_router.router import router as diagnosis_router
+from app.modules_dev2.method_modules.router import router as method_modules_router
+
 
 # Create database tables for registered SQLAlchemy models
 Base.metadata.create_all(bind=engine)
@@ -37,7 +41,10 @@ app.include_router(scheduler_router)
 app.include_router(assessment_router)
 app.include_router(planner_router)
 app.include_router(progress_router)
+
+# Mount Developer 1 Endpoints
 app.include_router(diagnosis_router)
+app.include_router(method_modules_router)
 
 # Developer 2 modules will mount below when ready:
 # from app.modules_dev2.method_router.router import router as method_router

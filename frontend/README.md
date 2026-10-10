@@ -19,6 +19,8 @@ The tutor, generated questions, AI grading for generated questions, worked solut
 
 Text, Markdown, CSV, and text-based PDF uploads are extracted by the backend. Image handwriting recognition uses the configured vision-capable chat model. For a deployed frontend, configure `VITE_API_URL` to the deployed API base URL in the frontend hosting environment, and configure the matching `FRONTEND_ORIGINS` and AI credentials on the backend.
 
+For Vercel, set `VITE_API_URL` in **Project Settings → Environment Variables** to the public FastAPI backend URL ending in `/api` (for example, `https://your-backend.example.com/api`) for each deployment environment, then redeploy. This repository's Vercel configuration builds the static frontend only; it does not route `/api` requests to the FastAPI backend. If the variable is missing, the frontend reports the configuration problem instead of displaying Vercel's generic 404 page.
+
 ## Implemented API-backed workflows
 
 - Account registration, login, profile preferences, course creation, and per-account data access.

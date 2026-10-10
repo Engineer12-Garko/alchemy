@@ -1,10 +1,7 @@
 const localApi = 'http://127.0.0.1:8000/api'
+const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || (
-  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? localApi
-    : '/api'
-)
+export const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() || (isLocalHost ? localApi : '')
 
 const TOKEN_KEY = 'synapse.accessToken'
 
@@ -39,6 +36,13 @@ export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
+  if (!API_BASE_URL) {
+    throw new ApiError(
+      'The Alchemy API URL is not configured for this deployment. Set VITE_API_URL to your backend API address ending in /api, then redeploy the frontend.',
+      0,
+    )
+  }
+
   const headers = new Headers(init.headers)
   const token = getAccessToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DashboardData, TabType, DisciplineFilter } from '../types/analytics';
+import type { DashboardData, TabType, DisciplineFilter } from '../types/analytics';
 import { Header } from './layout';
 import {
   KPICardGrid,

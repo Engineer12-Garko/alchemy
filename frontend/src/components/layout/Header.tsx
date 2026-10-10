@@ -1,5 +1,4 @@
-import { TabType, DisciplineFilter } from '../../types/analytics';
-import { Badge } from '../ui/Badge';
+import type { TabType, DisciplineFilter } from '../../types/analytics';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 
@@ -18,7 +17,6 @@ export function Header({
   activeTab,
   onTabChange,
   filters,
-  activeFilter,
   onFilterChange,
   modelCalibration,
 }: HeaderProps) {

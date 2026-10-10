@@ -1,8 +1,11 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './course-materials.css'
 import '../../features/assessment/diagnostic-review.css'
+import { apiRequest } from '../../services/api_client'
 
-type MaterialTab = 'All Materials' | 'Lecture Slides' | 'Problem Sets' | 'Formula Sheets & Syllabi' | 'Extracted Concept Graph'
+type MaterialTab = 'All Materials' | 'Uploaded Sources'
+interface MaterialRecord { id: number; filename: string; content_type: string; byte_size: number; created_at: string }
 
 const navigation = [
   { icon: 'space_dashboard', label: 'Overview' },
@@ -16,44 +19,18 @@ const navigation = [
 ]
 
 const materialTabs: { icon?: string; label: MaterialTab; count?: number }[] = [
-  { label: 'All Materials', count: 14 },
-  { icon: 'slideshow', label: 'Lecture Slides', count: 8 },
-  { icon: 'assignment', label: 'Problem Sets', count: 4 },
-  { icon: 'menu_book', label: 'Formula Sheets & Syllabi', count: 2 },
-  { icon: 'hub', label: 'Extracted Concept Graph' },
+  { label: 'All Materials' },
+  { icon: 'folder_copy', label: 'Uploaded Sources' },
 ]
 
 const suggestedPrompts = [
-  'Why must vector v be normalized to unit length before the scalar dot product?',
-  'Show step-by-step derivation for the slide 14 temperature gradient example.',
-  'How does this relate to chain rule with multivariable composite surfaces?',
+  'Summarize the main ideas in this source.',
+  'Explain one derivation from the document step by step.',
+  'What should I review first to understand this material?',
 ]
 
 function Icon({ children, className = '' }: { children: string; className?: string }) {
   return <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>{children}</span>
-}
-
-function VectorDiagram() {
-  return (
-    <svg aria-label="Gradient vector and unit direction vector at a point on a contour" className="vector-diagram" role="img" viewBox="0 0 260 160">
-      <defs>
-        <marker id="materials-arrow" markerHeight="6" markerWidth="6" orient="auto" refX="6" refY="5" viewBox="0 0 10 10">
-          <path d="M 0 1 L 8 5 L 0 9 z" fill="#006a61" />
-        </marker>
-      </defs>
-      <line className="vector-axis" x1="20" x2="240" y1="130" y2="130" />
-      <line className="vector-axis" x1="130" x2="130" y1="20" y2="145" />
-      <path className="vector-contour" d="M 35 120 C 80 120, 100 45, 230 40" />
-      <circle cx="110" cy="85" fill="#006a61" r="4.5" />
-      <text className="vector-label" x="95" y="105">P₀(x₀,y₀)</text>
-      <line markerEnd="url(#materials-arrow)" stroke="#006a61" strokeWidth="2.5" x1="110" x2="175" y1="85" y2="35" />
-      <text className="vector-label vector-label--teal" x="178" y="32">∇f</text>
-      <line className="vector-unit" x1="110" x2="185" y1="85" y2="92" />
-      <text className="vector-label" x="190" y="96">û</text>
-      <path className="vector-angle" d="M 140 70 A 25 25 0 0 1 143 86" />
-      <text className="vector-label vector-label--teal" x="146" y="80">θ</text>
-    </svg>
-  )
 }
 
 function CourseMaterials({
@@ -63,20 +40,42 @@ function CourseMaterials({
   onNavigateToAssessment: () => void
   onNavigateToTutor: () => void
 }) {
+  const navigateTo = useNavigate()
   const [activeNav, setActiveNav] = useState('Learning Resources')
   const [activeTab, setActiveTab] = useState<MaterialTab>('All Materials')
-  const [page, setPage] = useState(14)
   const [zoom, setZoom] = useState(100)
-  const [hitIndex, setHitIndex] = useState(0)
+  const [documentSearch, setDocumentSearch] = useState('')
   const [query, setQuery] = useState('')
   const [submittedQuestion, setSubmittedQuestion] = useState('')
+  const [materials, setMaterials] = useState<MaterialRecord[]>([])
+  const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null)
+  const [selectedMaterialText, setSelectedMaterialText] = useState('')
+  const [materialError, setMaterialError] = useState('')
+  const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
   const [uploadedFile, setUploadedFile] = useState('')
-  const [quizStarted, setQuizStarted] = useState(false)
-  const [quizAnswer, setQuizAnswer] = useState<string | null>(null)
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const uploadRef = useRef<HTMLInputElement>(null)
   const slideRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    let active = true
+    apiRequest<MaterialRecord[]>('/materials')
+      .then(async (data) => {
+        if (!active) return
+        setMaterials(data)
+        if (data.length) {
+          const current = data[0]
+          const detail = await apiRequest<{ id: number; filename: string; text: string }>(`/materials/${current.id}`)
+          if (active) {
+            setSelectedMaterialId(current.id)
+            setSelectedMaterialText(detail.text)
+            setUploadedFile(current.filename)
+          }
+        }
+      })
+      .catch((reason: unknown) => { if (active) setMaterialError(reason instanceof Error ? reason.message : 'Unable to load uploaded materials') })
+    return () => { active = false }
+  }, [])
 
   const showToast = (message: string) => {
     setToast(message)
@@ -92,71 +91,114 @@ function CourseMaterials({
       onNavigateToTutor()
       return
     }
+    const routeByLabel: Record<string, string> = {
+      Overview: '/',
+      'Diagnosis & Gaps': '/diagnosis',
+      'Study Planner': '/study-planner',
+      'Progress & Insights': '/progress',
+      Settings: '/settings',
+    }
+    const route = routeByLabel[label]
+    if (route) {
+      navigateTo(route)
+      return
+    }
     setActiveNav(label)
-    if (label !== 'Learning Resources') showToast(`${label} selected`)
   }
 
-  const jumpToTopic = () => {
-    setHitIndex((index) => (index + 1) % 3)
-    setPage((current) => current === 14 ? 15 : 14)
-    showToast(`Jumped to search result ${((hitIndex + 1) % 3) + 1} of 3`)
-  }
-
-  const copyFormula = async () => {
+  const copyExtractedText = async () => {
     try {
-      await navigator.clipboard.writeText('D_u f(x_0, y_0) = ∇f(x_0, y_0) · û, where ||û|| = 1')
-      showToast('LaTeX definition copied')
+      await navigator.clipboard.writeText(selectedMaterialText)
+      showToast('Extracted document text copied')
     } catch {
       showToast('Clipboard access is unavailable in this browser')
     }
   }
 
   const downloadNotes = () => {
-    const notes = [
-      'MATH 201 · Lecture 08 · Directional Derivatives & Unit Vector Normalization',
-      '',
-      'D_u f(x_0, y_0) = ∇f(x_0, y_0) · û, where ||û|| = 1',
-      '',
-      'The maximum directional derivative occurs when û aligns with ∇f.',
-      'Normalize the direction vector before calculating the directional derivative.',
-    ].join('\n')
-    const url = URL.createObjectURL(new Blob([notes], { type: 'text/plain' }))
+    if (!selectedMaterialText) return
+    const url = URL.createObjectURL(new Blob([selectedMaterialText], { type: 'text/plain;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url
-    link.download = 'lecture-08-slide-notes.txt'
+    link.download = `${uploadedFile.replace(/\.[^.]+$/, '') || 'course-material'}-extracted.txt`
     link.click()
     URL.revokeObjectURL(url)
-    showToast('Slide notes downloaded')
+    showToast('Extracted text downloaded')
   }
 
-  const submitQuestion = () => {
+  const submitQuestion = async () => {
     const trimmedQuery = query.trim()
     if (!trimmedQuery) {
       showToast('Enter a question about this lecture first')
       return
     }
-    setSubmittedQuestion(trimmedQuery)
-    setQuery('')
+    setBusy(true)
+    setMaterialError('')
+    try {
+      const result = await apiRequest<{ reply: string }>('/tutor/chat', {
+        method: 'POST',
+        body: JSON.stringify({ message: trimmedQuery, material_id: selectedMaterialId }),
+      })
+      setSubmittedQuestion(result.reply)
+      setQuery('')
+    } catch (reason) {
+      setMaterialError(reason instanceof Error ? reason.message : 'Unable to query your materials')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const uploadMaterial = async (file: File) => {
+    setBusy(true)
+    setMaterialError('')
+    const form = new FormData()
+    form.append('file', file)
+    try {
+      const uploaded = await apiRequest<{ id: number; filename: string; characters_extracted: number }>('/materials', { method: 'POST', body: form })
+      const record: MaterialRecord = { id: uploaded.id, filename: uploaded.filename, content_type: file.type || 'application/octet-stream', byte_size: file.size, created_at: new Date().toISOString() }
+      const detail = await apiRequest<{ id: number; filename: string; text: string }>(`/materials/${record.id}`)
+      setMaterials((current) => [record, ...current.filter((item) => item.id !== record.id)])
+      setSelectedMaterialId(record.id)
+      setSelectedMaterialText(detail.text)
+      setUploadedFile(record.filename)
+      showToast(`${record.filename} uploaded · ${uploaded.characters_extracted.toLocaleString()} characters extracted`)
+    } catch (reason) {
+      setMaterialError(reason instanceof Error ? reason.message : 'Unable to upload the material')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const selectMaterial = async (id: number | null) => {
+    setSelectedMaterialId(id)
+    setSelectedMaterialText('')
+    setMaterialError('')
+    if (id === null) return
+    try {
+      const detail = await apiRequest<{ id: number; filename: string; text: string }>(`/materials/${id}`)
+      setSelectedMaterialText(detail.text)
+      setUploadedFile(detail.filename)
+    } catch (reason) {
+      setMaterialError(reason instanceof Error ? reason.message : 'Unable to open uploaded material')
+    }
   }
 
   const tabMessage = activeTab === 'All Materials'
-    ? 'Showing the active lecture and related course material.'
-    : activeTab === 'Extracted Concept Graph'
-      ? 'Showing extracted concepts for Lecture 08.'
-      : `Showing ${activeTab.toLowerCase()} for MATH 201.`
+    ? `${materials.length} uploaded source(s) are available.`
+    : `${materials.length} uploaded source(s) are available.`
 
   return (
     <div className="studio-shell">
       <aside className="sidebar">
         <div className="sidebar__main">
           <a className="brand" href="#home" onClick={(event) => event.preventDefault()}>
-            <span className="brand__mark">S</span>
-            <span className="brand__name"><strong>Synapse</strong><small>Academic Studio</small></span>
+            <span className="brand__mark">A</span>
+            <span className="brand__name"><strong>Alchemy</strong><small>Academic Studio</small></span>
             <span className="brand__version">AI 2.5</span>
           </a>
-          <button className="course-select" onClick={() => showToast('MATH 201 · Multivariable Calculus')} type="button">
+          <button className="course-select" onClick={() => navigateTo('/')} type="button">
             <Icon>menu_book</Icon>
-            <span className="course-select__text"><small>Enrolled Course</small><strong>MATH 201: Multivar Calc</strong></span>
+            <span className="course-select__text"><small>Learning workspace</small><strong>My uploaded materials</strong></span>
             <Icon className="course-select__arrow">unfold_more</Icon>
           </button>
           <nav aria-label="Main navigation" className="side-nav">
@@ -175,13 +217,13 @@ function CourseMaterials({
         </div>
         <div className="sidebar__footer">
           <div className="sync-card">
-            <div className="sync-card__label"><Icon>cloud_done</Icon> Academic Sync <span>74%</span></div>
-            <div className="meter"><span style={{ width: '74%' }} /></div>
-            <div className="sync-card__cache">Content Cache <span>14.8 / 20 GB</span></div>
+            <div className="sync-card__label"><Icon>cloud_done</Icon> Account materials</div>
+            <div className="sync-card__cache">Uploaded files <span>{materials.length}</span></div>
+            <div className="sync-card__cache">Text selected <span>{selectedMaterialText ? 'Yes' : 'No'}</span></div>
           </div>
-          <button className="profile-card" onClick={() => showToast('Signed in as Elena Vance')} type="button">
+          <button className="profile-card" onClick={() => navigateTo('/settings')} type="button">
             <span className="profile-card__avatar"><Icon>person</Icon></span>
-            <span className="profile-card__copy"><strong>Elena Vance</strong><small>Junior · CS &amp; Math</small></span>
+            <span className="profile-card__copy"><strong>Account settings</strong><small>Profile and preferences</small></span>
             <Icon>more_vert</Icon>
           </button>
         </div>
@@ -189,49 +231,40 @@ function CourseMaterials({
 
       <div className="workspace">
         <header className="topbar">
-          <label className="search-box">
-            <Icon>search</Icon>
-            <input aria-label="Search course materials" onChange={(event) => setQuery(event.target.value)} placeholder="Search course materials, concepts, formulas..." value={query} />
-          </label>
-          <button className="topbar__course" onClick={() => showToast('MATH 201 · Section 04')} type="button"><span /> MATH 201 · Section 04</button>
+          <span className="topbar-search-status"><Icon>search</Icon>{materials.length} uploaded source(s)</span>
+          <button className="topbar__course" onClick={() => navigateTo('/study-planner')} type="button"><span /> {materials.length} uploaded material(s)</button>
           <div className="topbar__actions">
-            <button aria-pressed="true" className="live-toggle" onClick={() => showToast('Live Study Lens is enabled')} type="button">
-              <Icon>visibility</Icon><span>Live Study Lens</span><span className="switch is-on"><i /></span>
-            </button>
-            <button aria-label="Notifications" className="icon-button notification-button" onClick={() => showToast('You are all caught up')} type="button"><Icon>notifications</Icon><i /></button>
-            <button aria-label="User profile" className="topbar__avatar" onClick={() => showToast('Elena Vance · Junior · CS & Math')} type="button"><Icon>person</Icon></button>
+            <span className="live-toggle"><Icon>visibility</Icon><span>Document tools</span></span>
+            <button aria-label="Study planner and due tasks" className="icon-button notification-button" onClick={() => navigateTo('/study-planner')} type="button"><Icon>notifications</Icon><i /></button>
+            <button aria-label="User profile settings" className="topbar__avatar" onClick={() => navigateTo('/settings')} type="button"><Icon>person</Icon></button>
           </div>
         </header>
 
         <main className="main-content materials-main">
           <div className="materials-breadcrumb">
-            <button onClick={() => showToast('Your courses')} type="button">My Courses</button><Icon>chevron_right</Icon>
-            <button onClick={() => showToast('MATH 201 · Multivariable Calculus')} type="button">MATH 201: Multivariable Calculus</button><Icon>chevron_right</Icon>
+            <button onClick={() => navigateTo('/')} type="button">My Courses</button><Icon>chevron_right</Icon>
+            <button onClick={() => navigateTo('/')} type="button">Courses</button><Icon>chevron_right</Icon>
             <strong>Course Materials</strong>
           </div>
 
           <section className="materials-heading">
             <div>
               <h1>Course Materials &amp;<br className="materials-title-break" /> Document Intelligence</h1>
-              <p>AI-indexed lecture slides, problem sets, and syllabus concepts. OCR-parsed for instant query analysis and adaptive practice synthesis.</p>
+              <p>Upload PDFs, text, Markdown, or CSV files. Extracted content is saved to your account and can ground tutor answers.</p>
             </div>
             <div className="materials-heading__actions">
-              <span className="canvas-sync"><i /> Canvas LMS Synced</span>
               <button className="materials-secondary-button" onClick={() => {
-                setActiveTab('Extracted Concept Graph')
+                setActiveTab('Uploaded Sources')
                 document.getElementById('topic-outline')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }} type="button"><Icon>account_tree</Icon>Extract Concept Graph</button>
+              }} type="button"><Icon>folder_copy</Icon>Browse uploaded sources</button>
               <button className="materials-primary-button" onClick={() => uploadRef.current?.click()} type="button"><Icon>upload_file</Icon>Upload Material</button>
               <input
-                accept=".pdf,.ppt,.pptx,.doc,.docx,.txt,.png,.jpg,.jpeg"
+                accept=".pdf,.txt,.md,.csv"
                 aria-label="Upload course material"
                 className="visually-hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0]
-                  if (file) {
-                    setUploadedFile(file.name)
-                    showToast(`${file.name} added to the upload queue`)
-                  }
+                  if (file) void uploadMaterial(file)
                   event.target.value = ''
                 }}
                 ref={uploadRef}
@@ -248,7 +281,7 @@ function CourseMaterials({
                 key={tab.label}
                 onClick={() => {
                   setActiveTab(tab.label)
-                  if (tab.label === 'Extracted Concept Graph') {
+                  if (tab.label === 'Uploaded Sources') {
                     document.getElementById('topic-outline')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   }
                 }}
@@ -264,76 +297,44 @@ function CourseMaterials({
           {activeTab !== 'All Materials' && <p aria-live="polite" className="materials-filter-note">{tabMessage}</p>}
 
           <div className="materials-grid">
-            <section aria-label="Lecture document viewer" className={`materials-left${isFullscreen ? ' is-fullscreen' : ''}`} ref={slideRef}>
+            <section aria-label="Uploaded document viewer" className="materials-left" ref={slideRef}>
               <article className="viewer-card panel">
                 <div className="viewer-heading">
                   <span className="viewer-file-icon"><Icon>picture_as_pdf</Icon></span>
                   <div className="viewer-heading__file">
                     <div className="viewer-heading__title">
-                      <strong>Lecture 08: Directional Derivatives &amp; Gradient Vectors.pdf</strong>
-                      <span className="ocr-pill">99.4% OCR Verified</span>
+                      <strong>{uploadedFile || 'No material selected'}</strong>
+                      <span className="ocr-pill">{selectedMaterialText ? `${selectedMaterialText.length.toLocaleString()} characters extracted` : 'Upload a document to view its text'}</span>
                     </div>
-                    <small>Prof. Julian Vance · Department of Mathematics · Recorded Fall 2024</small>
+                    <small>Stored in your account · {materials.length} uploaded source(s)</small>
                   </div>
                   <div className="viewer-controls">
-                    <button aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} type="button"><Icon>chevron_left</Icon></button>
-                    <span>{page} / 32</span>
-                    <button aria-label="Next page" disabled={page >= 32} onClick={() => setPage((current) => Math.min(32, current + 1))} type="button"><Icon>chevron_right</Icon></button>
-                    <i />
-                    <button aria-label="Zoom out" disabled={zoom <= 70} onClick={() => setZoom((current) => Math.max(70, current - 10))} type="button"><Icon>zoom_out</Icon></button>
+                    <button aria-label="Decrease text size" disabled={zoom <= 70} onClick={() => setZoom((current) => Math.max(70, current - 10))} type="button"><Icon>zoom_out</Icon></button>
                     <span>{zoom}%</span>
-                    <button aria-label="Zoom in" disabled={zoom >= 140} onClick={() => setZoom((current) => Math.min(140, current + 10))} type="button"><Icon>zoom_in</Icon></button>
-                    <button aria-label={isFullscreen ? 'Exit fullscreen' : 'Toggle fullscreen'} onClick={() => setIsFullscreen((fullscreen) => !fullscreen)} type="button"><Icon>{isFullscreen ? 'fullscreen_exit' : 'fullscreen'}</Icon></button>
+                    <button aria-label="Increase text size" disabled={zoom >= 140} onClick={() => setZoom((current) => Math.min(140, current + 10))} type="button"><Icon>zoom_in</Icon></button>
                   </div>
                 </div>
 
-                <div className="slide-search">
-                  <span><Icon>search</Icon>Search within slide stream (Cmd+F)</span>
-                  <span><code>"gradient vector" ({3 - hitIndex % 3} hits)</code><button onClick={jumpToTopic} type="button">Jump to next</button></span>
-                </div>
+                <div className="slide-search"><label><Icon>search</Icon><input aria-label="Search extracted document text" onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Search within this document" value={documentSearch} /></label><span>{documentSearch && selectedMaterialText ? `${selectedMaterialText.toLowerCase().split(documentSearch.toLowerCase()).length - 1} match(es)` : 'Text extraction'}</span></div>
 
-                <article className="slide-stage" aria-label={`Lecture slide ${page}`} style={{ zoom: zoom / 100 }}>
-                  <div className="slide-ribbon"><span><i /> MATH 201 · LECTURE 08 · THEOREM 3.4</span><span>Slide Timestamp: 24:18 (Audio Synced)</span></div>
-                  <div className="slide-title">
-                    <h2>Directional Derivatives &amp; Unit Vector Normalization</h2>
-                    <p>Rate of change along an arbitrary orientation vector in Euclidean 2-space</p>
-                  </div>
-                  <div className="formal-definition">
-                    <div className="formal-definition__top"><span>Formal Definition</span><button onClick={copyFormula} type="button"><Icon>content_copy</Icon>Copy LaTeX</button></div>
-                    <div className="formula-display"><strong>D<sub>u</sub> f(x₀, y₀) = ∇f(x₀, y₀) · û</strong><span>where</span><b>||û|| = 1</b></div>
-                    <p><strong>Theorem 3.4 (Steepest Ascent):</strong> The maximum directional derivative at point (x₀, y₀) occurs precisely when the direction vector û aligns parallel to the gradient vector ∇f, with maximum magnitude equal to ||∇f(x₀, y₀)||.</p>
-                  </div>
-                  <div className="slide-interpretation">
-                    <div className="vector-figure">
-                      <span>Vector Direction Plane</span>
-                      <VectorDiagram />
-                      <small>Fig 8.2: Angle θ between ∇f and arbitrary û</small>
-                    </div>
-                    <div className="interpretation-notes">
-                      <div><strong><Icon>verified</Icon>Geometric Interpretation</strong><p>The dot product projects the maximum gradient vector onto the test heading vector. When θ = 90°, directional change is identically 0 (level curve contour line).</p></div>
-                      <div className="frequent-trap"><strong><Icon>warning</Icon>Frequent Trap</strong><p>Forgetting to normalize raw vector <code>v = ⟨a, b⟩</code> by dividing by its Euclidean norm produces an inflated scalar rate.</p></div>
-                    </div>
-                  </div>
-                  <div className="slide-footer">
-                    <span>OCR Extraction Confidence: 99.4% · MathJax Verified</span>
-                    <span><button onClick={() => showToast('Read-aloud is not available in this browser preview')} type="button"><Icon>record_voice_over</Icon>Read Aloud</button><button onClick={downloadNotes} type="button"><Icon>download</Icon>Export Notes</button></span>
-                  </div>
-                </article>
+                {selectedMaterialText ? <article className="slide-stage uploaded-material-text" aria-label={`Extracted text from ${uploadedFile}`} style={{ zoom: zoom / 100 }}>
+                  <div className="slide-title"><h2>{uploadedFile}</h2><p>Extracted document text · {selectedMaterialText.length.toLocaleString()} characters</p></div>
+                  <pre>{documentSearch ? selectedMaterialText.split(new RegExp(`(${documentSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig')).map((part, index) => part.toLowerCase() === documentSearch.toLowerCase() ? <mark key={`${index}-${part}`}>{part}</mark> : part) : selectedMaterialText}</pre>
+                  <div className="slide-footer"><span>Extracted text for {uploadedFile}</span><span><button onClick={() => void copyExtractedText()} type="button"><Icon>content_copy</Icon>Copy Text</button><button onClick={downloadNotes} type="button"><Icon>download</Icon>Export Text</button></span></div>
+                </article> : <div className="slide-stage upload-empty-state"><Icon>upload_file</Icon><strong>{materials.length ? 'Select a source to read its extracted text' : 'No materials uploaded yet'}</strong><p>Upload a PDF, TXT, Markdown, or CSV file to make its text available here and to the tutor.</p><button disabled={busy} onClick={() => uploadRef.current?.click()} type="button">{busy ? 'Uploading…' : 'Upload a document'}</button></div>}
 
                 <div className="document-actions">
                   <button className="document-action document-action--primary" onClick={onNavigateToTutor} type="button"><Icon>neurology</Icon>Ask AI Tutor</button>
-                  <button className="document-action" onClick={() => { setQuizStarted(true); setQuizAnswer(null); document.getElementById('adaptive-drill')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }} type="button"><Icon>quiz</Icon>Generate Drill</button>
-                  <button className="document-action" onClick={() => showToast('Lecture 08 slide added to your scratchpad')} type="button"><Icon>draw</Icon>To Scratchpad</button>
-                  <button className="document-action" onClick={() => showToast('Slide 14 scheduled for spaced review')} type="button"><Icon>bookmark_add</Icon>Spaced Review</button>
+                  <button className="document-action" onClick={onNavigateToAssessment} type="button"><Icon>quiz</Icon>Practice a question</button>
+                  <button className="document-action" onClick={onNavigateToTutor} type="button"><Icon>draw</Icon>Discuss this text</button>
+                  <button className="document-action" onClick={() => navigateTo('/progress')} type="button"><Icon>bookmark_add</Icon>Review schedule</button>
                 </div>
 
                 <div className="associated-assets">
-                  <div className="associated-assets__heading"><span>Associated Course Assets</span><button onClick={() => showToast('8 files in the Lecture 08 bundle')} type="button">View 8 files in Lecture 08 bundle</button></div>
+                  <div className="associated-assets__heading"><span>Uploaded Sources</span><span>{materials.length} file(s)</span></div>
                   <div className="asset-list">
-                    <button className="asset-item" onClick={() => showToast('PS4_Solutions.pdf · Matches Slide 14–18')} type="button"><Icon>description</Icon><span><strong>PS4_Solutions.pdf</strong><small>Matches Slide 14–18</small></span></button>
-                    <button className="asset-item" onClick={() => showToast('Lecture08_Audio.m4a · Transcript indexed')} type="button"><Icon>videocam</Icon><span><strong>Lecture08_Audio.m4a</strong><small>Transcript indexed</small></span></button>
-                    <button className="asset-item" onClick={() => showToast('Stewart_Ch14.6.pdf · Assigned Reading')} type="button"><Icon>functions</Icon><span><strong>Stewart_Ch14.6.pdf</strong><small>Assigned Reading</small></span></button>
-                    {uploadedFile && <button className="asset-item asset-item--new" onClick={() => showToast(`${uploadedFile} is queued for indexing`)} type="button"><Icon>upload_file</Icon><span><strong>{uploadedFile}</strong><small>Queued for indexing</small></span></button>}
+                    {materials.map((item) => <button aria-pressed={selectedMaterialId === item.id} className={`asset-item${selectedMaterialId === item.id ? ' asset-item--new' : ''}`} key={item.id} onClick={() => void selectMaterial(item.id)} type="button"><Icon>description</Icon><span><strong>{item.filename}</strong><small>{(item.byte_size / 1024).toFixed(1)} KB · {new Date(item.created_at).toLocaleDateString()}</small></span></button>)}
+                    {materials.length === 0 && <p className="materials-filter-note">Uploaded files will appear here.</p>}
                   </div>
                 </div>
               </article>
@@ -341,100 +342,51 @@ function CourseMaterials({
 
             <section aria-label="Extracted course intelligence" className="materials-right">
               <article className="outline-card panel" id="topic-outline">
-                <div className="materials-card-title"><span><Icon>account_tree</Icon><h2>Extracted Topic Outline</h2></span><small>Lecture 08 Tree</small></div>
-                <p className="materials-card-intro">Hierarchical syllabus taxonomy synthesized from uploaded slides &amp; speech transcripts.</p>
-                <div className="topic-item">
-                  <div className="topic-item__heading"><strong>1. Directional Derivative Definition</strong><span className="topic-mastery">88% Solid Mastery</span></div>
-                  <div className="topic-progress"><span style={{ width: '88%' }} /></div>
-                  <div className="topic-item__meta"><span>Slides 1–7 · 2 Practice Sets Completed</span><button onClick={() => { setPage(4); showToast('Opened notes for the directional derivative definition') }} type="button">Review Notes</button></div>
-                </div>
-                <div className="topic-item topic-item--bottleneck">
-                  <div className="topic-item__heading"><strong><Icon>report_problem</Icon>2. Unit Vector Normalization</strong><span className="topic-bottleneck">Bottleneck</span></div>
-                  <div className="topic-progress"><span style={{ width: '38%' }} /></div>
-                  <div className="topic-item__meta"><span className="linked-topic">Linked: #MATH201-MR-03</span><span>Flagged in Quiz #4 (Attempt 2)</span></div>
-                  <p>Common error: Evaluated ∇f · v directly with vector length ≠ 1, missing radical scale divisor √(a² + b²).</p>
-                </div>
-                <div className="topic-item">
-                  <div className="topic-item__heading"><strong>3. Gradient as Steepest Ascent</strong><span className="topic-in-progress">62% In Progress</span></div>
-                  <div className="topic-progress"><span style={{ width: '62%' }} /></div>
-                  <div className="topic-item__meta"><span>Slides 12–21 · Active Slide 14</span><button onClick={() => { setPage(14); slideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} type="button">Inspect Proof</button></div>
-                </div>
-                <div className="topic-item topic-item--upcoming">
-                  <div className="topic-item__heading"><strong>4. Tangent Plane Formulation</strong><span>Upcoming</span></div>
-                  <div className="topic-item__meta"><span>Slides 22–32 · Scheduled Lecture 09</span><span>Prerequisite: Concept 3</span></div>
-                </div>
-                {activeTab === 'Extracted Concept Graph' && <div className="graph-note"><Icon>hub</Icon>Concept graph view is focused on this lecture's prerequisite and mastery links.</div>}
+                <div className="materials-card-title"><span><Icon>folder_copy</Icon><h2>Uploaded source text</h2></span><small>{selectedMaterialText.length.toLocaleString()} chars</small></div>
+                <p className="materials-card-intro">{uploadedFile || 'Select an uploaded file'} · content extracted from your own source.</p>
+                {selectedMaterialText ? <pre className="source-text-preview">{selectedMaterialText.slice(0, 1800)}{selectedMaterialText.length > 1800 ? '…' : ''}</pre> : <p className="materials-filter-note">Select a source above to inspect its extracted text.</p>}
               </article>
 
               <article className="query-card panel">
                 <div className="materials-card-title"><span><Icon>psychology_alt</Icon><h2>Document Query Studio</h2></span><small>Socratic Lens</small></div>
-                <p className="materials-card-intro">Ask questions grounded strictly in this lecture transcript and formula sheets.</p>
+                <p className="materials-card-intro">Ask about the selected uploaded source. The tutor receives that source text as context.</p>
                 <div className="suggested-prompts">
                   <strong>Suggested High-Yield Prompts:</strong>
                   {suggestedPrompts.map((prompt) => (
                     <button key={prompt} onClick={() => setQuery(prompt)} type="button"><Icon>auto_awesome</Icon><span>{prompt}</span></button>
                   ))}
                 </div>
+                {materialError && <p className="materials-filter-note" role="alert">{materialError}</p>}
+                {materials.length > 0 && <label className="materials-filter-note">Ground answers in an uploaded source: <select onChange={(event) => void selectMaterial(event.target.value ? Number(event.target.value) : null)} value={selectedMaterialId ?? ''}><option value="">No source selected</option>{materials.map((item) => <option key={item.id} value={item.id}>{item.filename}</option>)}</select></label>}
                 {submittedQuestion && (
                   <div aria-live="polite" className="grounded-answer">
                     <strong><Icon>auto_awesome</Icon>Grounded response</strong>
                     <p>{submittedQuestion}</p>
-                    <p>A directional derivative uses a unit direction vector: normalize <code>v</code> first, then compute <code>∇f · û</code>. The lecture’s Theorem 3.4 says the maximum rate occurs when û points along the gradient.</p>
-                    <small>Source: Lecture 08, Slide 14 · Theorem 3.4</small>
+                    <small>{selectedMaterialId ? `Source: ${materials.find((item) => item.id === selectedMaterialId)?.filename ?? 'uploaded material'}` : 'Answer generated by the configured AI tutor; no uploaded source was selected.'}</small>
                   </div>
                 )}
                 <div className="query-compose">
-                  <textarea aria-label="Ask a question grounded in Lecture 08" onChange={(event) => setQuery(event.target.value)} placeholder="Ask any question grounded in Lecture 08 (e.g. clarify the geometric angle theta)..." rows={3} value={query} />
-                  <div className="query-compose__tools"><button aria-label="Voice input" onClick={() => showToast('Voice input is not available in this preview')} type="button"><Icon>mic</Icon></button><button aria-label="Attach a file" onClick={() => uploadRef.current?.click()} type="button"><Icon>attachment</Icon></button></div>
+                  <textarea aria-label="Ask a question about your uploaded material" onChange={(event) => setQuery(event.target.value)} placeholder="Ask a question about the selected document..." rows={3} value={query} />
+                  <div className="query-compose__tools"><button aria-label="Use voice input in tutor workspace" onClick={onNavigateToTutor} type="button"><Icon>mic</Icon></button><button aria-label="Attach a file" onClick={() => uploadRef.current?.click()} type="button"><Icon>attachment</Icon></button></div>
                 </div>
                 <div className="query-submit-row">
-                  <span><Icon>menu_book</Icon>Citing: Slide 14 · Stewart 14.6</span>
-                  <button onClick={submitQuestion} type="button">Submit to Socratic Tutor<Icon>arrow_forward</Icon></button>
+                  <span><Icon>menu_book</Icon>{selectedMaterialId ? `Source: ${uploadedFile}` : 'Select a source above to ground your question'}</span>
+                  <button disabled={busy} onClick={() => void submitQuestion()} type="button">{busy ? 'Working…' : 'Submit to Socratic Tutor'}<Icon>arrow_forward</Icon></button>
                 </div>
               </article>
 
               <article className="drill-card panel" id="adaptive-drill">
-                <div className="materials-card-title"><span><Icon>fitness_center</Icon><h2>Adaptive Practice Drill</h2></span><small className="synth-pill">2 Synthesized Questions</small></div>
-                <p className="materials-card-intro">Live questions constructed directly from Slide 14 theorem &amp; past student bottleneck data.</p>
-                <div className="drill-question">
-                  <div><strong>DRILL #1 · CONCEPT REINFORCEMENT</strong><span>Est. 90 sec</span></div>
-                  <p>Let f(x, y) = x²e³ʸ. Compute the directional derivative at point (2, 0) in the direction of raw vector v = ⟨3, 4⟩.</p>
-                  <div className="drill-tags"><span>Tests: Unit Normalization</span><span>Difficulty: Medium</span></div>
-                </div>
-                <div className="drill-question">
-                  <div><strong>DRILL #2 · THEOREM INTUITION</strong><span>Est. 60 sec</span></div>
-                  <p>If the directional derivative along vector û equals zero, what is the geometric relationship between û and the contour level curve of f?</p>
-                  <div className="drill-tags"><span>Tests: Orthogonality</span><span>Difficulty: Conceptual</span></div>
-                </div>
-                {quizStarted && (
-                  <div className="quiz-panel">
-                    <strong>Micro-quiz · Slide 14</strong>
-                    <p>Before calculating a directional derivative in the direction of v = ⟨3, 4⟩, what should you do?</p>
-                    <div>
-                      {['Use v directly', 'Normalize v to unit length', 'Square each component'].map((answer) => (
-                        <button
-                          aria-pressed={quizAnswer === answer}
-                          className={quizAnswer === answer ? (answer === 'Normalize v to unit length' ? 'is-correct' : 'is-incorrect') : ''}
-                          key={answer}
-                          onClick={() => setQuizAnswer(answer)}
-                          type="button"
-                        >{answer}</button>
-                      ))}
-                    </div>
-                    {quizAnswer && <small>{quizAnswer === 'Normalize v to unit length' ? 'Correct — û = v / ||v||.' : 'Not quite. The direction vector must have unit length.'}</small>}
-                  </div>
-                )}
-                <button className="start-quiz" onClick={() => { setQuizStarted((started) => !started); setQuizAnswer(null) }} type="button">
-                  <Icon>{quizStarted ? 'close' : 'play_circle'}</Icon>{quizStarted ? 'Close Micro-Quiz' : 'Start 3-Minute Micro-Quiz on Slide 14'}
-                </button>
+                <div className="materials-card-title"><span><Icon>fitness_center</Icon><h2>Practice with your course material</h2></span></div>
+                <p className="materials-card-intro">Open the assessment area to try the built-in question or generate a new question with your configured AI provider.</p>
+                <button className="start-quiz" onClick={onNavigateToAssessment} type="button"><Icon>quiz</Icon>Open Practice &amp; Quizzes</button>
               </article>
             </section>
           </div>
 
           <footer className="integrity-footer">
             <span className="integrity-footer__icon"><Icon>verified_user</Icon></span>
-            <span className="integrity-footer__copy"><strong>Academic Integrity &amp; Grounding Assurance</strong><small>Synapse verified all mathematical expressions against Prof. Vance's official Canvas syllabus. Zero generative hallucination policy active.</small></span>
-            <span className="integrity-footer__actions"><button onClick={() => showToast('OCR raw JSON is not available in this preview')} type="button">View OCR Raw JSON</button><button onClick={downloadNotes} type="button">Export Slide Notes</button></span>
+            <span className="integrity-footer__copy"><strong>Source handling</strong><small>Uploaded text is supplied to the tutor when a source is selected. Check generated guidance against your course materials.</small></span>
+            <span className="integrity-footer__actions"><button onClick={() => { setActiveTab('All Materials'); document.querySelector('.materials-left')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} type="button">View extracted materials</button><button onClick={downloadNotes} type="button">Export Slide Notes</button></span>
           </footer>
         </main>
       </div>

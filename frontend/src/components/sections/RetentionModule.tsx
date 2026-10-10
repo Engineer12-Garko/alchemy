@@ -1,5 +1,5 @@
-import { RetentionItem } from '../../types/analytics';
-import { Card, CardContent } from '../ui';
+import type { RetentionItem } from '../../types/analytics';
+import { Card } from '../ui';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Icon } from '../ui/Icon';

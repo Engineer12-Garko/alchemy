@@ -1,5 +1,5 @@
-import { KPIMetric } from '../../types/analytics';
-import { Card, CardContent } from '../ui';
+import type { KPIMetric } from '../../types/analytics';
+import { Card } from '../ui';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Icon } from '../ui/Icon';
 

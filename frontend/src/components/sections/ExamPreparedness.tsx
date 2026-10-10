@@ -1,4 +1,4 @@
-import { ExamProjection, ExamGap } from '../../types/analytics';
+import type { ExamProjection, ExamGap } from '../../types/analytics';
 import { Card } from '../ui';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';

@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import './misconception-diagnostic.css';
+import { useState, type ReactNode } from 'react';
+import './DiagnosisAndGaps.css';
 
-function Icon({ children, className = '' }: { children: string; className?: string }) {
+function Icon({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
       {children}
@@ -38,6 +38,7 @@ const evidenceItems: EvidenceItem[] = [
     id: 'quiz4',
     title: 'Quiz #4 · Question 3',
     date: 'Nov 14, 2024 · Timed Assessment',
+    type: 'quiz',
     points: '-4.5 pts',
     prompt: 'Prompt asked for ∂w / ∂r where w = ln(x² + y²), x = r cos(θ), y = r sin(θ).',
     audit: 'Dropped line 3 substitution for (∂w/∂y)(∂y/∂r) entirely. Output yielded only 2x / (x²+y²) · cos(θ), terminating the evaluation early.',
@@ -46,6 +47,7 @@ const evidenceItems: EvidenceItem[] = [
     id: 'hw2',
     title: 'Homework 2 · Exercise 5',
     date: 'Nov 08, 2024 · Problem Set',
+    type: 'homework',
     points: 'Flagged by TA',
     prompt: 'Derive ∂z / ∂u given z = e^(xy), x = u²v, y = uv².',
     audit: 'Calculated single intermediate node along u via x; omitted second simultaneous intermediate node through y.',
@@ -156,7 +158,7 @@ export default function MisconceptionDiagnostic() {
           {courses.map((course) => (
             <button
               key={course.id}
-              className={`course-pill ${course.isActive ? 'active' : ''}`}
+              className={`course-pill ${activeCourse === course.id ? 'active' : ''}`}
               onClick={() => setActiveCourse(course.id)}
             >
               <span className="pill-indicator" style={{ backgroundColor: course.iconColor }} />
@@ -471,7 +473,7 @@ export default function MisconceptionDiagnostic() {
                     </p>
                   )}
                   {!step.isLocked && (
-                    <button className="step-cta">
+                    <button className="step-cta" onClick={() => toggleEvidence(String(step.id))} type="button">
                       <span>Start Recommended Visual Guide</span>
                       <Icon>arrow_forward</Icon>
                     </button>

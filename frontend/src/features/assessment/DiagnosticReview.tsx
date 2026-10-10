@@ -118,9 +118,9 @@ function DiagnosticReview({
       <aside className="sidebar">
         <div className="sidebar__main">
           <a className="brand" href="#home" onClick={(event) => event.preventDefault()}>
-            <span className="brand__mark">S</span>
+            <span className="brand__mark">A</span>
             <span className="brand__name">
-              <strong>Synapse</strong>
+              <strong>Alchemy</strong>
               <small>Academic Studio</small>
             </span>
             <span className="brand__version">AI 2.5</span>

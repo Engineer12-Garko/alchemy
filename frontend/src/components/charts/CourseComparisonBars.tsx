@@ -1,4 +1,4 @@
-import { CourseMetric } from '../../types/analytics';
+import type { CourseMetric } from '../../types/analytics';
 
 interface CourseComparisonBarsProps {
   courses: CourseMetric[];

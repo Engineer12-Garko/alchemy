@@ -1,4 +1,4 @@
-import { DashboardData, TabType, DisciplineFilter } from '../types/analytics';
+import type { DashboardData, TabType, DisciplineFilter } from '../types/analytics';
 
 export const mockDashboardData: DashboardData = {
   activeDataPoints: 187,

@@ -1,7 +1,6 @@
-import { CourseMetric, TrajectoryPoint } from '../../types/analytics';
-import { Card, CardContent } from '../ui';
+import type { CourseMetric, TrajectoryPoint } from '../../types/analytics';
+import { Card } from '../ui';
 import { Badge } from '../ui/Badge';
-import { Icon } from '../ui/Icon';
 import { TrajectoryChart, CourseComparisonBars } from '../charts';
 
 interface TrajectoryModuleProps {

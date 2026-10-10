@@ -1,4 +1,4 @@
-import { TrajectoryPoint, CourseMetric } from '../../types/analytics';
+import type { TrajectoryPoint, CourseMetric } from '../../types/analytics';
 
 interface TrajectoryChartProps {
   data: TrajectoryPoint[];

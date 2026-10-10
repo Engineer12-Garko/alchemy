@@ -1,8 +1,7 @@
-import { MisconceptionItem } from '../../types/analytics';
+import type { MisconceptionItem } from '../../types/analytics';
 import { Card } from '../ui';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { Icon } from '../ui/Icon';
 
 interface MisconceptionAuditProps {
   items: MisconceptionItem[];
@@ -25,7 +24,7 @@ export function MisconceptionAudit({ items }: MisconceptionAuditProps) {
   const getStatusConfig = (status: MisconceptionItem['status']) => {
     switch (status) {
       case 'in-remediation':
-        return { label: 'In Remediation', variant: 'outline' as const, color: 'primary-container' };
+        return { label: 'In Remediation', variant: 'info' as const, color: 'primary-container' };
       case 'drill-queued':
         return { label: 'Drill Queued', variant: 'secondary' as const, color: 'secondary' };
       case 'resolved':
@@ -78,7 +77,7 @@ export function MisconceptionAudit({ items }: MisconceptionAuditProps) {
               <Button variant="outline" size="sm" className="shadow-sm">
                 Inspect Diagnostic Evidence
               </Button>
-              <Button variant="default" size="sm">
+              <Button variant="secondary" size="sm">
                 Practise Remedial Twin
               </Button>
             </div>

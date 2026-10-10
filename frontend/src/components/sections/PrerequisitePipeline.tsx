@@ -1,4 +1,4 @@
-import { PrerequisiteStep } from '../../types/analytics';
+import type { PrerequisiteStep } from '../../types/analytics';
 import { Card } from '../ui';
 import { Badge } from '../ui/Badge';
 import { Icon } from '../ui/Icon';

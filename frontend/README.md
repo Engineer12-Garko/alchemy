@@ -1,32 +1,28 @@
-# React + TypeScript + Vite
+# Alchemy Academic Studio
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## Local development
 
-Currently, two official plugins are available:
+1. Install the backend dependencies with `python -m pip install -r backend/requirements.txt`.
+2. Copy `backend/.env.example` to `backend/.env`. Set a private `JWT_SECRET` before deployment.
+3. From `backend`, run `uvicorn app.main:app --reload`. The development database defaults to a local SQLite file.
+4. Copy `frontend/.env.example` to `frontend/.env.local`. Set `VITE_API_URL` to the backend API base URL (for example, `http://127.0.0.1:8000/api`).
+5. From `frontend`, run `npm install` and `npm run dev`.
+6. Open `http://localhost:5173/auth`. Choose **Create an account** below the sign-in form, enter your name, email, and a password of at least 8 characters, then choose **Create account**. After registration, Alchemy signs you in automatically. On later visits, use the same email and password with **Sign in**.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Accounts are stored in the backend database. There is no pre-created demo account; create your own account first. If you already registered in this local database, sign in with those credentials.
 
-## React Compiler
+Run `npm run build` in `frontend` to run the TypeScript project build and create the production bundle.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## AI and multimodal features
 
-## Expanding the Oxlint configuration
+The tutor, generated questions, AI grading for generated questions, worked solutions, image OCR, and audio transcription require an OpenAI-compatible provider. Configure `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL` in the backend environment. Set `OPENAI_TRANSCRIPTION_MODEL` when the provider uses a separate model for `/audio/transcriptions`. The configured provider must support the API endpoints used by the backend. Missing or failed provider configuration is returned as an API error; the app does not substitute mock answers.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Text, Markdown, CSV, and text-based PDF uploads are extracted by the backend. Image handwriting recognition uses the configured vision-capable chat model. For a deployed frontend, configure `VITE_API_URL` to the deployed API base URL in the frontend hosting environment, and configure the matching `FRONTEND_ORIGINS` and AI credentials on the backend.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## Implemented API-backed workflows
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- Account registration, login, profile preferences, course creation, and per-account data access.
+- Diagnosis summaries, deterministic method selection, study-step attempt gating, and solution access after an attempt.
+- Built-in quiz grading and provider-generated question grading, with learner-history and spaced-review updates.
+- Study task creation, completion, and deletion; mastery summaries and review scheduling.
+- Document upload and text extraction, source-grounded tutor questions, persisted tutor conversation history, image transcription, and microphone recording/transcription.

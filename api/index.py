@@ -1,8 +1,9 @@
 import sys
 from pathlib import Path
 
-# From /var/task/api/index.py, go up two levels to /var/task, then into backend/app
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend" / "app"))
+# Ensure the backend package is importable when this file runs from the Vercel task root.
+# The app package lives under <repo>/backend, not under <repo>/backend/app.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
 from app.main import app
 

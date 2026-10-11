@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.database import Base, engine
 from app.models import Course, LearningEvent, Material, PlannerTask, ReviewItem, StudyModuleSession, TutorMessage, UserPreferences
 from app.modules_dev1.assessment.router import router as assessment_router
+from app.modules_dev1.auth.router import router as auth_router
 from app.modules_dev1.auth.models import User
 from app.modules_dev1.learner_model.models import MisconceptionLog, UserMastery
 from app.modules_dev1.planner.router import router as planner_router
@@ -37,6 +38,7 @@ app.include_router(scheduler_router)
 app.include_router(assessment_router)
 app.include_router(planner_router)
 app.include_router(progress_router)
+app.include_router(auth_router)
 app.include_router(alchemy_router)
 
 try:

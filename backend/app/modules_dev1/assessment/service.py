@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.shared.review_event import ReviewEvent
 
 
@@ -17,14 +17,8 @@ class AssessmentSubmission(BaseModel):
     question_id: str
     raw_final_answer: str
     canonical_target_value: str
-    step_evaluations: List[StepEvaluation]
+    step_evaluations: List[StepEvaluation] = Field(min_length=1)
     turnaround_seconds: int
-
-    @validator('step_evaluations')
-    def require_at_least_one_step(cls, v):
-        if len(v) == 0:
-            raise ValueError('At least one step evaluation is required')
-        return v
 
 
 class AssessmentResult(BaseModel):

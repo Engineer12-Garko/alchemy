@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # Resolve .env file path: prefer directory where this module lives, then project root
- _ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):

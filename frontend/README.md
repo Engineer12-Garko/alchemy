@@ -21,7 +21,7 @@ Text, Markdown, CSV, and text-based PDF uploads are extracted by the backend. Im
 
 ## Deploy the full app to Vercel
 
-Keep the Vercel project **Root Directory** set to the repository root. Vercel builds the React frontend and deploys the FastAPI application as a Python Function from the root `index.py`; the same Vercel domain serves both the UI and `/api` endpoints. The root `requirements.txt` installs the backend dependencies from `backend/requirements.txt`.
+Keep the Vercel project **Root Directory** set to the repository root. Vercel builds the React frontend and deploys the FastAPI application from `api/index.py` using its built-in Python runtime; `api/requirements.txt` provides the backend dependencies. The same Vercel domain serves the UI and `/api` endpoints.
 
 Before using account-backed features, add these environment variables in **Vercel → Project Settings → Environment Variables** for Production (and Preview if needed):
 

@@ -1,0 +1,54 @@
+PERSONALISED LEARNING WEBSITE
+Specific website features summarised from the supplied project resources
+1. AI-Powered Learning Diagnosis
+Identifies the concepts, prerequisite knowledge and reasoning steps a student is struggling with—not only whether an
+answer is right or wrong.
+2. Adaptive Learning Method Router
+Chooses and adjusts the learning approach for each topic based on the student’s performance and learning needs.
+3. Multimodal Question Submission
+Allows students to ask questions using text and, where supported, specialised editors, handwriting, screenshots or
+photos, document uploads, voice, and live screen sharing.
+4. Personalised AI Tutor
+Provides step-by-step explanations, worked examples, hints, guiding questions and feedback suited to the student’s
+level and course.
+5. Course Material Integration
+Lets students upload lecture notes, slides or a syllabus to build topic outlines and generate practice questions based
+on their materials.
+6. Personalised Learning Resources
+Recommends relevant videos, readings and examples according to the student’s current level and identified learning
+gaps.
+7. Adaptive Quizzes and Practice
+Provides or generates questions suited to the student’s ability, identifies repeated mistakes, explains incorrect
+answers and suggests targeted exercises.
+8. Personalised Study Planner
+Creates a study schedule using learning gaps, upcoming exams, topic importance and the student’s available study
+time.
+9. Student Progress Dashboard
+Displays topic mastery, quiz performance, recurring errors, revision needs and progress, including recommended next
+steps.
+10. Spaced Revision and Knowledge Retention
+Schedules revision based on earlier performance and uses follow-up questions to check whether students have
+retained what they learned.
+11. Live Study Lens
+With the student’s permission, lets the AI tutor view shared screen content and help explain slides, diagrams,
+equations, code or problems.
+12. Privacy, Accessibility and Flexible Access
+Supports secure accounts, student-controlled screen sharing and data controls, with mobile-friendly design,
+accessibility and low-bandwidth use as goals.
+Suggested Website Learning Flow
+
+1
+Assess the student’s current understanding.
+2
+Diagnose learning gaps and personalise the approach.
+3
+Teach the topic and provide targeted practice.
+4
+Test understanding with questions or quizzes.
+5
+Update the student’s learning profile and adapt the next steps.
+Suggested first prototype: prioritise learning diagnosis, the adaptive learning cycle, question submission,
+targeted practice and progress tracking. Features such as voice tutoring, offline synchronisation and peer study
+rooms can be considered for later stages.
+Note: These are proposed features described or summarised from the supplied resources; the document does
+not claim that every feature has already been implemented.

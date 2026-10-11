@@ -1,0 +1,33 @@
+backend/
+├── app/
+│   ├── core/                          # Shared setup (configure once at start)
+│   │   ├── config.py                  # App settings and environment variables
+│   │   ├── database.py                # Database engine and session handlers
+│   │   └── security.py                # JWT creation and password hashing
+│   │
+│   ├── shared/                        # Common interfaces used across features
+│   │   ├── review_event.py            # Standardized Review Event data model[cite: 8]
+│   │   └── document_intake.py         # File upload and raw storage utilities[cite: 8]
+│   │
+│   ├── modules_dev1/                  # --- DEVELOPER 1 DOMAIN ---
+│   │   ├── auth/                      # Account management & Feature 12 access controls[cite: 7]
+│   │   ├── learner_model/             # Feature 3: Central store for mastery & errors[cite: 5]
+│   │   ├── scheduler/                 # Feature 5: Deterministic FSRS/SM-2 review dates[cite: 5, 8]
+│   │   ├── assessment/                # Feature 6: Quiz grading & retention verification[cite: 6, 8]
+│   │   ├── planner/                   # Feature 10: Timetable engine based on scheduler items[cite: 7]
+│   │   └── progress/                  # Feature 11: Read-only learner model aggregation[cite: 7]
+│   │
+│   ├── modules_dev2/                  # --- DEVELOPER 2 DOMAIN ---
+│   │   ├── method_router/             # Feature 1: Skill classification & method selector[cite: 4]
+│   │   ├── method_modules/            # Feature 2: Step rules (e.g., hiding solutions until attempt)[cite: 5]
+│   │   ├── diagnosis/                 # Feature 4: Gap identification & onboarding placement[cite: 5]
+│   │   ├── source_ingestion/          # Feature 7: Notes/syllabus parser via shared intake[cite: 6, 8]
+│   │   ├── llm_layer/                 # Feature 8: Question generator, AI hints, further reading[cite: 6, 8]
+│   │   └── multimodal/                # Feature 9: Voice notes, screenshots & OCR processing[cite: 6, 8]
+│   │
+│   └── main.py                        # FastAPI entry point (auto-loads modules_dev1 & dev2)
+│
+├── alembic/                           # Database migration files
+├── docker-compose.yml                 # Local PostgreSQL (pgvector) and Redis
+├── requirements.txt                   # Backend dependencies
+└── .env                               # Secrets and environment configurations

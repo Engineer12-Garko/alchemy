@@ -1,0 +1,27 @@
+frontend/
+├── src/
+│   ├── assets/                        # Static assets, styling icons, and images
+│   ├── components/                    # Shared reusable UI elements (Buttons, Modals, Inputs)
+│   ├── hooks/                         # Custom hooks (useAuth, useAudioRecorder, useTutorStream)
+│   │
+│   ├── services/                      # API network connections
+│   │   ├── api_client.ts              # Base HTTP client with JWT interceptor
+│   │   ├── dev1_api.ts                # Calls to Auth, Scheduler, Quizzes, Planner & Progress
+│   │   └── dev2_api.ts                # Calls to Tutor, Multimodal, Ingestion & Method Modules
+│   │
+│   ├── features/                      # Modular UI views (mapped 1:1 to features)
+│   │   ├── auth/                      # Login, registration, and user data consent (Feature 12)[cite: 7]
+│   │   ├── diagnosis/                 # Diagnostic onboarding wizard (Feature 4)[cite: 5]
+│   │   ├── study_flow/                # Method module runner with rule enforcement (Features 1 & 2)[cite: 4, 5]
+│   │   ├── materials/                 # Lecture note and syllabus upload center (Feature 7)[cite: 6]
+│   │   ├── tutor_chat/                # Streaming AI tutor chat window (Feature 8)[cite: 6]
+│   │   ├── multimodal_input/          # Voice recorder, photo/handwriting submit (Feature 9)[cite: 6]
+│   │   ├── assessment/                # Practice quiz screen and delayed re-tests (Feature 6)[cite: 6]
+│   │   ├── planner/                   # Calendar timetable & daily task list (Feature 10)[cite: 7]
+│   │   └── progress/                  # Mastery charts and error summaries (Feature 11)[cite: 7]
+│   │
+│   ├── App.tsx                        # Main application routing
+│   └── main.tsx                       # Frontend entry point
+│
+├── package.json
+└── vite.config.ts

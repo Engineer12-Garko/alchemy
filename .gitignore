@@ -34,3 +34,18 @@ Thumbs.db
 
 # AI provider configs
 backend/app/.env
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Local dev / utility scripts
+check_vercel.py
+FINAL_SUMMARY.md
+FIX_SUMMARY.md
+
+# Alembic ini lives at repo root (generated)
+alembic.ini
+
+# venv
+.venv/

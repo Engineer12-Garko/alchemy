@@ -19,7 +19,13 @@ export default function StudyPlannerPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
-  const refresh = async () => setTasks(await apiRequest<PlannerTask[]>('/planner/tasks'))
+  const refresh = async () => {
+    try {
+      setTasks(await apiRequest<PlannerTask[]>('/planner/tasks'))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to refresh planner tasks')
+    }
+  }
   useEffect(() => {
     let active = true
     apiRequest<PlannerTask[]>('/planner/tasks')

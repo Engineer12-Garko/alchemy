@@ -57,7 +57,12 @@ try:
 except (ImportError, ModuleNotFoundError) as error:
     logger.warning("Developer 2 modules pending implementation: %s", error)
 
-Base.metadata.create_all(bind=engine)
+# create_all is kept for local development convenience (first run without migrations).
+# In production, run: alembic upgrade head
+# NOTE: create_all does NOT apply schema changes to an existing database.
+import os as _os
+if _os.environ.get("APP_ENV", "development").lower() != "production":
+    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/health", tags=["Health"])

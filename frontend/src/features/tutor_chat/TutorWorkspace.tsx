@@ -9,17 +9,6 @@ interface TutorSource { id: number; filename: string; byte_size: number }
 interface TutorProgress { attempts: number; reviews_due: number; mastery: { concept: string; score: number }[] }
 interface TutorAccount { display_name: string }
 
-const navigation = [
-  { icon: 'space_dashboard', label: 'Overview' },
-  { icon: 'neurology', label: 'AI Tutor Workspace' },
-  { icon: 'troubleshoot', label: 'Diagnosis & Gaps' },
-  { icon: 'quiz', label: 'Practice & Quizzes' },
-  { icon: 'calendar_month', label: 'Study Planner' },
-  { icon: 'folder_copy', label: 'Learning Resources' },
-  { icon: 'insights', label: 'Progress & Insights' },
-  { icon: 'settings', label: 'Settings' },
-]
-
 const tutorActions = [
   { icon: 'auto_stories', label: 'Explain more simply' },
   { icon: 'calculate', label: 'Show a worked example' },
@@ -34,15 +23,8 @@ function Icon({ children, className = '' }: { children: string; className?: stri
   return <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>{children}</span>
 }
 
-function TutorWorkspace({
-  onNavigateToAssessment,
-  onNavigateToMaterials,
-}: {
-  onNavigateToAssessment: () => void
-  onNavigateToMaterials: () => void
-}) {
+function TutorWorkspace() {
   const navigateTo = useNavigate()
-  const [activeNav, setActiveNav] = useState('AI Tutor Workspace')
   const [messages, setMessages] = useState<TutorMessage[]>([])
   const [draft, setDraft] = useState('')
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -95,30 +77,6 @@ function TutorWorkspace({
   const showNotice = (message: string) => {
     setNotice(message)
     window.setTimeout(() => setNotice(''), 3000)
-  }
-
-  const navigate = (label: string) => {
-    if (label === 'Practice & Quizzes') {
-      onNavigateToAssessment()
-      return
-    }
-    if (label === 'Learning Resources') {
-      onNavigateToMaterials()
-      return
-    }
-    const routeByLabel: Record<string, string> = {
-      Overview: '/',
-      'Diagnosis & Gaps': '/diagnosis',
-      'Study Planner': '/study-planner',
-      'Progress & Insights': '/progress',
-      Settings: '/settings',
-    }
-    const route = routeByLabel[label]
-    if (route) {
-      navigateTo(route)
-      return
-    }
-    setActiveNav(label)
   }
 
   const sendMessage = async (event?: FormEvent<HTMLFormElement>, messageOverride?: string) => {
@@ -231,38 +189,7 @@ function TutorWorkspace({
   }
 
   return (
-    <div className="studio-shell">
-      <aside className="sidebar">
-        <div className="sidebar__main">
-          <a className="brand" href="#home" onClick={(event) => event.preventDefault()}>
-            <span className="brand__mark">A</span>
-            <span className="brand__name"><strong>Alchemy</strong><small>Academic Studio</small></span>
-            <span className="brand__version">AI 2.5</span>
-          </a>
-          <button className="course-select" onClick={() => navigateTo('/')} type="button">
-            <Icon>menu_book</Icon><span className="course-select__text"><small>Learning workspace</small><strong>AI Tutor</strong></span><Icon className="course-select__arrow">unfold_more</Icon>
-          </button>
-          <nav aria-label="Main navigation" className="side-nav">
-            {navigation.map((item) => (
-              <button aria-current={activeNav === item.label ? 'page' : undefined} className={`side-nav__item${activeNav === item.label ? ' is-active' : ''}`} key={item.label} onClick={() => navigate(item.label)} type="button">
-                <Icon>{item.icon}</Icon><span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-        <div className="sidebar__footer">
-          <div className="sync-card">
-            <div className="sync-card__label"><Icon>cloud_done</Icon> Saved learning data</div>
-            <div className="sync-card__cache">Tutor messages <span>{messages.length}</span></div>
-            <div className="sync-card__cache">Uploaded sources <span>{sources.length}</span></div>
-          </div>
-          <button className="profile-card" onClick={() => navigateTo('/settings')} type="button">
-            <span className="profile-card__avatar"><Icon>person</Icon></span><span className="profile-card__copy"><strong>{account?.display_name ?? 'Account'}</strong><small>Settings and preferences</small></span><Icon>more_vert</Icon>
-          </button>
-        </div>
-      </aside>
-
-      <div className="workspace tutor-workspace">
+    <div className="tutor-workspace">
         <header className="topbar">
           <span className="topbar-search-status"><Icon>neurology</Icon>Ask questions, select a source, and get a saved response</span>
           <div className="topbar__actions">
@@ -300,7 +227,7 @@ function TutorWorkspace({
               </section>
 
               <section className="tutor-card source-card">
-                <div className="source-card__title"><span><small>Uploaded source library</small><strong>{sources.length} file(s)</strong></span><button aria-label="Open uploaded materials" onClick={onNavigateToMaterials} type="button"><Icon>open_in_new</Icon></button></div>
+                <div className="source-card__title"><span><small>Uploaded source library</small><strong>{sources.length} file(s)</strong></span><button aria-label="Open uploaded materials" onClick={() => navigateTo('/resources')} type="button"><Icon>open_in_new</Icon></button></div>
                 {sources.length === 0 ? <p>No documents uploaded. Add a PDF or text file in Learning Resources.</p> : sources.map((source) => <button className="tutor-source-row" key={source.id} onClick={() => setSelectedMaterialId(source.id)} type="button"><Icon>description</Icon><span>{source.filename}<small>{(source.byte_size / 1024).toFixed(1)} KB</small></span></button>)}
               </section>
 
@@ -380,14 +307,12 @@ function TutorWorkspace({
               <section className="tutor-card microstep-card">
                 <div className="insight-title"><span><Icon>bolt</Icon>Next steps</span></div>
                 <p>{progress?.reviews_due ?? 0} spaced review(s) currently due.</p>
-                <button className="start-micro-drill" onClick={onNavigateToAssessment} type="button">Practice a question<Icon>quiz</Icon></button>
+                <button className="start-micro-drill" onClick={() => navigateTo('/quiz')} type="button">Practice a question<Icon>quiz</Icon></button>
                 <button className="start-micro-drill" onClick={() => navigateTo('/progress')} type="button">Review progress<Icon>insights</Icon></button>
               </section>
             </aside>
           </div>
         </main>
-      </div>
-
       {notice && <div aria-live="polite" className="toast">{notice}</div>}
       {showSessionLog && (
         <div className="modal-backdrop" onClick={() => setShowSessionLog(false)} role="presentation">

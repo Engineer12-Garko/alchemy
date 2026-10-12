@@ -43,30 +43,8 @@ def get_due_reviews(
 
     items = query.order_by(UserMastery.next_review_due.asc()).all()
 
-    # Provide seeded fallback items if database is clean
     if not items:
-        return [
-            DueReviewItem(
-                concept_id="jacobian_determinants",
-                concept_name="Jacobian Determinants",
-                course_id="MATH-201",
-                mastery_score=0.45,
-                stability=2.1,
-                difficulty=6.2,
-                predicted_recall_pct=64.2,
-                due_date=now
-            ),
-            DueReviewItem(
-                concept_id="red_black_trees",
-                concept_name="Red-Black Tree Rotations",
-                course_id="CS-210",
-                mastery_score=0.52,
-                stability=3.0,
-                difficulty=5.8,
-                predicted_recall_pct=72.0,
-                due_date=now
-            )
-        ]
+        return []
 
     results = []
     for item in items:

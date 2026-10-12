@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useEffect, useState, type FormEvent } from 'react';
 import './AppLayout.css';
-import { apiRequest, clearAccessToken } from '../services/api_client';
+import { apiRequest, ApiError, clearAccessToken } from '../services/api_client';
 
 interface Account { display_name: string; email: string }
 interface Course { id: number; code: string; name: string; subject: string }
@@ -43,7 +43,10 @@ export default function AppLayout() {
       setSelectedCourseId((current) => current || String(courseList[0]?.id ?? ''));
       setProgressSummary(summary);
     }).catch((reason: unknown) => {
-      if (active) setCourseError(reason instanceof Error ? reason.message : 'Unable to load account workspace data');
+      // 401s are already handled globally in apiRequest (token cleared + redirect).
+      if (active && !(reason instanceof ApiError && reason.status === 401)) {
+        setCourseError(reason instanceof Error ? reason.message : 'Unable to load account workspace data');
+      }
     });
     return () => { active = false; };
   }, []);

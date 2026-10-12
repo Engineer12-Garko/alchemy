@@ -37,17 +37,16 @@ def get_progress_overview(
         bottleneck_count = sum(1 for m in masteries if m.status == "bottleneck")
         learning_count = len(masteries) - (mastered_count + bottleneck_count)
     else:
-        # Defaults matching Figma dashboard screen
-        avg_mastery = 78.4
-        mastered_count = 14
-        learning_count = 6
-        bottleneck_count = 2
+        avg_mastery = 0.0
+        mastered_count = 0
+        learning_count = 0
+        bottleneck_count = 0
 
     return ProgressOverview(
         cognitive_mastery=avg_mastery,
-        retention_index=94.1,
-        resolved_misconceptions=max(14, resolved_count),
-        weekly_focus_hours=18.5,
+        retention_index=0.0,
+        resolved_misconceptions=resolved_count,
+        weekly_focus_hours=0.0,
         memory_decay_curve=[
             {"day": 1, "predicted_retention": 100},
             {"day": 3, "predicted_retention": 91},

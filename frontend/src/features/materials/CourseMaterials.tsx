@@ -7,16 +7,6 @@ import { apiRequest } from '../../services/api_client'
 type MaterialTab = 'All Materials' | 'Uploaded Sources'
 interface MaterialRecord { id: number; filename: string; content_type: string; byte_size: number; created_at: string }
 
-const navigation = [
-  { icon: 'space_dashboard', label: 'Overview' },
-  { icon: 'neurology', label: 'AI Tutor Workspace' },
-  { icon: 'troubleshoot', label: 'Diagnosis & Gaps' },
-  { icon: 'quiz', label: 'Practice & Quizzes' },
-  { icon: 'calendar_month', label: 'Study Planner' },
-  { icon: 'folder_copy', label: 'Learning Resources' },
-  { icon: 'insights', label: 'Progress & Insights' },
-  { icon: 'settings', label: 'Settings' },
-]
 
 const materialTabs: { icon?: string; label: MaterialTab; count?: number }[] = [
   { label: 'All Materials' },
@@ -33,15 +23,8 @@ function Icon({ children, className = '' }: { children: string; className?: stri
   return <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>{children}</span>
 }
 
-function CourseMaterials({
-  onNavigateToAssessment,
-  onNavigateToTutor,
-}: {
-  onNavigateToAssessment: () => void
-  onNavigateToTutor: () => void
-}) {
+function CourseMaterials() {
   const navigateTo = useNavigate()
-  const [activeNav, setActiveNav] = useState('Learning Resources')
   const [activeTab, setActiveTab] = useState<MaterialTab>('All Materials')
   const [zoom, setZoom] = useState(100)
   const [documentSearch, setDocumentSearch] = useState('')
@@ -80,30 +63,6 @@ function CourseMaterials({
   const showToast = (message: string) => {
     setToast(message)
     window.setTimeout(() => setToast(''), 3200)
-  }
-
-  const chooseNav = (label: string) => {
-    if (label === 'Practice & Quizzes') {
-      onNavigateToAssessment()
-      return
-    }
-    if (label === 'AI Tutor Workspace') {
-      onNavigateToTutor()
-      return
-    }
-    const routeByLabel: Record<string, string> = {
-      Overview: '/',
-      'Diagnosis & Gaps': '/diagnosis',
-      'Study Planner': '/study-planner',
-      'Progress & Insights': '/progress',
-      Settings: '/settings',
-    }
-    const route = routeByLabel[label]
-    if (route) {
-      navigateTo(route)
-      return
-    }
-    setActiveNav(label)
   }
 
   const copyExtractedText = async () => {
@@ -185,51 +144,10 @@ function CourseMaterials({
 
   const tabMessage = activeTab === 'All Materials'
     ? `${materials.length} uploaded source(s) are available.`
-    : `${materials.length} uploaded source(s) are available.`
+    : `Showing ${materials.length} uploaded source(s).`
 
   return (
-    <div className="studio-shell">
-      <aside className="sidebar">
-        <div className="sidebar__main">
-          <a className="brand" href="#home" onClick={(event) => event.preventDefault()}>
-            <span className="brand__mark">A</span>
-            <span className="brand__name"><strong>Alchemy</strong><small>Academic Studio</small></span>
-            <span className="brand__version">AI 2.5</span>
-          </a>
-          <button className="course-select" onClick={() => navigateTo('/')} type="button">
-            <Icon>menu_book</Icon>
-            <span className="course-select__text"><small>Learning workspace</small><strong>My uploaded materials</strong></span>
-            <Icon className="course-select__arrow">unfold_more</Icon>
-          </button>
-          <nav aria-label="Main navigation" className="side-nav">
-            {navigation.map((item) => (
-              <button
-                aria-current={activeNav === item.label ? 'page' : undefined}
-                className={`side-nav__item${activeNav === item.label ? ' is-active' : ''}`}
-                key={item.label}
-                onClick={() => chooseNav(item.label)}
-                type="button"
-              >
-                <Icon>{item.icon}</Icon><span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-        <div className="sidebar__footer">
-          <div className="sync-card">
-            <div className="sync-card__label"><Icon>cloud_done</Icon> Account materials</div>
-            <div className="sync-card__cache">Uploaded files <span>{materials.length}</span></div>
-            <div className="sync-card__cache">Text selected <span>{selectedMaterialText ? 'Yes' : 'No'}</span></div>
-          </div>
-          <button className="profile-card" onClick={() => navigateTo('/settings')} type="button">
-            <span className="profile-card__avatar"><Icon>person</Icon></span>
-            <span className="profile-card__copy"><strong>Account settings</strong><small>Profile and preferences</small></span>
-            <Icon>more_vert</Icon>
-          </button>
-        </div>
-      </aside>
-
-      <div className="workspace">
+    <div className="materials-main-content">
         <header className="topbar">
           <span className="topbar-search-status"><Icon>search</Icon>{materials.length} uploaded source(s)</span>
           <button className="topbar__course" onClick={() => navigateTo('/study-planner')} type="button"><span /> {materials.length} uploaded material(s)</button>
@@ -324,9 +242,9 @@ function CourseMaterials({
                 </article> : <div className="slide-stage upload-empty-state"><Icon>upload_file</Icon><strong>{materials.length ? 'Select a source to read its extracted text' : 'No materials uploaded yet'}</strong><p>Upload a PDF, TXT, Markdown, or CSV file to make its text available here and to the tutor.</p><button disabled={busy} onClick={() => uploadRef.current?.click()} type="button">{busy ? 'Uploading…' : 'Upload a document'}</button></div>}
 
                 <div className="document-actions">
-                  <button className="document-action document-action--primary" onClick={onNavigateToTutor} type="button"><Icon>neurology</Icon>Ask AI Tutor</button>
-                  <button className="document-action" onClick={onNavigateToAssessment} type="button"><Icon>quiz</Icon>Practice a question</button>
-                  <button className="document-action" onClick={onNavigateToTutor} type="button"><Icon>draw</Icon>Discuss this text</button>
+                  <button className="document-action document-action--primary" onClick={() => navigateTo('/ai-tutor')} type="button"><Icon>neurology</Icon>Ask AI Tutor</button>
+                  <button className="document-action" onClick={() => navigateTo('/quiz')} type="button"><Icon>quiz</Icon>Practice a question</button>
+                  <button className="document-action" onClick={() => navigateTo('/ai-tutor')} type="button"><Icon>draw</Icon>Discuss this text</button>
                   <button className="document-action" onClick={() => navigateTo('/progress')} type="button"><Icon>bookmark_add</Icon>Review schedule</button>
                 </div>
 
@@ -367,7 +285,7 @@ function CourseMaterials({
                 )}
                 <div className="query-compose">
                   <textarea aria-label="Ask a question about your uploaded material" onChange={(event) => setQuery(event.target.value)} placeholder="Ask a question about the selected document..." rows={3} value={query} />
-                  <div className="query-compose__tools"><button aria-label="Use voice input in tutor workspace" onClick={onNavigateToTutor} type="button"><Icon>mic</Icon></button><button aria-label="Attach a file" onClick={() => uploadRef.current?.click()} type="button"><Icon>attachment</Icon></button></div>
+                  <div className="query-compose__tools"><button aria-label="Use voice input in tutor workspace" onClick={() => navigateTo('/ai-tutor')} type="button"><Icon>mic</Icon></button><button aria-label="Attach a file" onClick={() => uploadRef.current?.click()} type="button"><Icon>attachment</Icon></button></div>
                 </div>
                 <div className="query-submit-row">
                   <span><Icon>menu_book</Icon>{selectedMaterialId ? `Source: ${uploadedFile}` : 'Select a source above to ground your question'}</span>
@@ -378,7 +296,7 @@ function CourseMaterials({
               <article className="drill-card panel" id="adaptive-drill">
                 <div className="materials-card-title"><span><Icon>fitness_center</Icon><h2>Practice with your course material</h2></span></div>
                 <p className="materials-card-intro">Open the assessment area to try the built-in question or generate a new question with your configured AI provider.</p>
-                <button className="start-quiz" onClick={onNavigateToAssessment} type="button"><Icon>quiz</Icon>Open Practice &amp; Quizzes</button>
+                <button className="start-quiz" onClick={() => navigateTo('/quiz')} type="button"><Icon>quiz</Icon>Open Practice &amp; Quizzes</button>
               </article>
             </section>
           </div>
@@ -389,7 +307,6 @@ function CourseMaterials({
             <span className="integrity-footer__actions"><button onClick={() => { setActiveTab('All Materials'); document.querySelector('.materials-left')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} type="button">View extracted materials</button><button onClick={downloadNotes} type="button">Export Slide Notes</button></span>
           </footer>
         </main>
-      </div>
       {toast && <div aria-live="polite" className="toast">{toast}</div>}
     </div>
   )

@@ -57,6 +57,10 @@ export async function apiRequest<T>(
     ? await response.json()
     : await response.text()
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAccessToken()
+      window.location.assign('/auth')
+    }
     const detail = typeof body === 'object' && body !== null && 'detail' in body
       ? (body as ApiErrorShape).detail
       : typeof body === 'string' ? body : undefined

@@ -36,6 +36,13 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     display_name: str = Field(min_length=1, max_length=120)
 
+    @field_validator("password")
+    @classmethod
+    def bcrypt_password_fits(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be no more than 72 UTF-8 bytes")
+        return value
+
     @field_validator("display_name", mode="before")
     @classmethod
     def strip_display_name(cls, v: str) -> str:

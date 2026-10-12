@@ -58,10 +58,9 @@ except (ImportError, ModuleNotFoundError) as error:
     logger.warning("Developer 2 modules pending implementation: %s", error)
 
 # create_all is kept for local development convenience (first run without migrations).
-# In production, run: alembic upgrade head
+# Production migrations run from backend/migrate.py during the Vercel API build.
 # NOTE: create_all does NOT apply schema changes to an existing database.
-import os as _os
-if _os.environ.get("APP_ENV", "development").lower() != "production":
+if not settings.is_production:
     Base.metadata.create_all(bind=engine)
 
 

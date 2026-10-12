@@ -28,10 +28,16 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=str(_ENV_PATH), env_file_encoding="utf-8", extra="ignore")
 
+    @property
+    def is_production(self) -> bool:
+        return self.app_env.lower() == "production" or os.environ.get("VERCEL") == "1"
+
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":
-        if self.app_env.lower() == "production" and self.jwt_secret == "development-only-change-me":
+        if self.is_production and self.jwt_secret == "development-only-change-me":
             raise ValueError("JWT_SECRET must be set to a secure value in production")
+        if self.is_production and not self.database_url.startswith(("postgres://", "postgresql://", "postgresql+psycopg://")):
+            raise ValueError("DATABASE_URL must use a persistent PostgreSQL database in production")
         if self.jwt_expire_minutes < 1:
             raise ValueError("JWT_EXPIRE_MINUTES must be at least 1")
         if self.max_upload_mb < 1:

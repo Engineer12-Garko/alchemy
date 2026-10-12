@@ -4,7 +4,8 @@
     "api": {
       "root": ".",
       "entrypoint": "api/index.py",
-      "framework": "fastapi"
+      "framework": "fastapi",
+      "buildCommand": "python -m pip install -r api/requirements.txt && python backend/migrate.py"
     },
     "frontend": {
       "root": "frontend/",

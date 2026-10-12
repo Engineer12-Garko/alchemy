@@ -37,7 +37,8 @@ export async function apiRequest<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const headers = new Headers(init.headers)
-  const token = getAccessToken()
+  const isPublicAuthRequest = /^\/auth\/(login|register)$/.test(path)
+  const token = isPublicAuthRequest ? null : getAccessToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
@@ -57,7 +58,7 @@ export async function apiRequest<T>(
     ? await response.json()
     : await response.text()
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && !isPublicAuthRequest && token) {
       clearAccessToken()
       window.location.assign('/auth')
     }

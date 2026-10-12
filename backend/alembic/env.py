@@ -11,7 +11,7 @@ from alembic import context
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
 # Import all models so that autogenerate sees every table.
-from app.core.database import Base  # noqa: E402
+from app.core.database import Base, normalize_database_url  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 import app.models  # noqa: F401, E402  — registers all shared models
 import app.modules_dev1.auth.models  # noqa: F401, E402
@@ -28,7 +28,10 @@ if config.config_file_name is not None:
 
 # Override sqlalchemy.url with the value from the application settings
 # so migrations always target the same database as the running app.
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+# ConfigParser interpolation treats percent escapes in URL-encoded passwords as
+# interpolation markers. Alembic requires literal percent signs to be doubled.
+database_url = normalize_database_url(get_settings().database_url)
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 

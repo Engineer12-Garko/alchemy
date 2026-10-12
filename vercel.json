@@ -1,9 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm ci --prefix frontend && npm run build --prefix frontend",
-  "outputDirectory": "frontend/dist",
+  "services": {
+    "api": {
+      "root": ".",
+      "entrypoint": "api/index.py",
+      "framework": "fastapi"
+    },
+    "frontend": {
+      "root": "frontend/",
+      "framework": "vite",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist"
+    }
+  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
-    { "source": "/(.*)",     "destination": "/index.html" }
+    { "source": "/api/(.*)", "destination": { "service": "api" } },
+    { "source": "/(.*)", "destination": { "service": "frontend" } }
   ]
 }

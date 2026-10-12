@@ -3,13 +3,13 @@
 ## Local development
 
 1. Install the backend dependencies with `python -m pip install -r backend/requirements.txt`.
-2. Copy `backend/.env.example` to `backend/.env`. Set a private `JWT_SECRET` before deployment.
+2. Copy `backend/.env.example` to `backend/.env`. Authentication is disabled in prototype mode; set `AUTH_ENABLED=true` and a private `JWT_SECRET` to turn it back on.
 3. From `backend`, run `uvicorn app.main:app --reload`. The development database defaults to `alchemy_local.db`; it is separate from the legacy `synapse.db` file, which is left untouched.
 4. Copy `frontend/.env.example` to `frontend/.env.local`. Set `VITE_API_URL` to the backend API base URL (for example, `http://127.0.0.1:8000/api`).
 5. From `frontend`, run `npm install` and `npm run dev`.
-6. Open `http://localhost:5173/auth`. Choose **Create an account** below the sign-in form, enter your name, email, and a password of at least 8 characters, then choose **Create account**. After registration, Alchemy signs you in automatically. On later visits, use the same email and password with **Sign in**.
+6. Open `http://localhost:5173`. The workspace opens without a login while `VITE_AUTH_ENABLED=false`.
 
-Accounts are stored in the backend database. There is no pre-created demo account; create your own account first. If you already registered in this local database, sign in with those credentials.
+With authentication disabled, all visitors share one workspace and its data. Do not use prototype mode for private or real user data. To re-enable authentication, set both `AUTH_ENABLED=true` in the backend environment and `VITE_AUTH_ENABLED=true` in the frontend environment, and configure a private `JWT_SECRET`.
 
 Run `npm run build` in `frontend` to run the TypeScript project build and create the production bundle.
 
@@ -23,11 +23,12 @@ Text, Markdown, CSV, and text-based PDF uploads are extracted by the backend. Im
 
 Keep the Vercel project **Root Directory** set to the repository root. Vercel builds the React frontend and deploys the FastAPI application from `api/index.py` using its built-in Python runtime; `api/requirements.txt` provides the backend dependencies. The same Vercel domain serves the UI and `/api` endpoints.
 
-Before using account-backed features, add these environment variables in **Vercel → Project Settings → Environment Variables** for Production (and Preview if needed):
+For prototype mode, add these environment variables in **Vercel → Project Settings → Environment Variables** for Production (and Preview if needed):
 
 - `APP_ENV=production`
-- `JWT_SECRET` set to a private random value of at least 32 characters.
 - `DATABASE_URL` set to a persistent PostgreSQL connection URL using SQLAlchemy's `postgresql+psycopg://` scheme. SQLite on a serverless filesystem is not persistent and must not be used for real accounts.
+
+Authentication is disabled by default (`AUTH_ENABLED=false`, `VITE_AUTH_ENABLED=false`). All visitors share one workspace. To re-enable accounts, set both flags to `true` and provide a private random `JWT_SECRET` of at least 32 characters.
 
 For tutor, generated-question, AI grading, worked-solution, image OCR, and audio transcription features, also set `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL`; set `OPENAI_TRANSCRIPTION_MODEL` if the provider uses a different transcription model. Redeploy after adding or changing environment variables. The frontend calls the API on the same Vercel domain by default, so `VITE_API_URL` is not required for this deployment.
 

@@ -11,6 +11,8 @@ _ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 
 class Settings(BaseSettings):
     app_env: str = "development"
+    # Temporary prototype mode: all visitors share one workspace without signing in.
+    auth_enabled: bool = False
     database_url: str = "sqlite:///./alchemy_local.db"
     jwt_secret: str = "development-only-change-me"
     jwt_expire_minutes: int = 60 * 24 * 7
@@ -34,7 +36,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":
-        if self.is_production and self.jwt_secret == "development-only-change-me":
+        if self.is_production and self.auth_enabled and self.jwt_secret == "development-only-change-me":
             raise ValueError("JWT_SECRET must be set to a secure value in production")
         if self.is_production and not self.database_url.startswith(("postgres://", "postgresql://", "postgresql+psycopg://")):
             raise ValueError("DATABASE_URL must use a persistent PostgreSQL database in production")

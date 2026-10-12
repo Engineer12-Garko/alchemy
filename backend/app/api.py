@@ -278,6 +278,8 @@ def health() -> dict[str, str]:
 
 @router.post("/api/auth/register", status_code=201)
 def register(payload: RegisterRequest, db: Db) -> dict[str, Any]:
+    if not settings.auth_enabled:
+        raise HTTPException(status_code=404, detail="Authentication is disabled for this prototype")
     user = User(
         email=str(payload.email).lower(),
         hashed_password=get_password_hash(payload.password),
@@ -296,6 +298,8 @@ def register(payload: RegisterRequest, db: Db) -> dict[str, Any]:
 
 @router.post("/api/auth/login")
 def login(payload: LoginRequest, db: Db) -> dict[str, Any]:
+    if not settings.auth_enabled:
+        raise HTTPException(status_code=404, detail="Authentication is disabled for this prototype")
     user = db.scalar(select(User).where(User.email == str(payload.email).lower()))
     if user is None or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Email or password is incorrect")

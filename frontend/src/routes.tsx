@@ -9,9 +9,10 @@ import SettingsPageView from './features/settings/SettingsPageView'
 import TutorWorkspace from './features/tutor_chat/TutorWorkspace'
 import AppLayout from './layouts/AppLayout'
 import { RequireAuthentication } from './route-components'
+import { AUTH_ENABLED } from './services/api_client'
 
 export const router = createBrowserRouter([
-  { path: '/auth', element: <AuthPage /> },
+  { path: '/auth', element: AUTH_ENABLED ? <AuthPage /> : <Navigate replace to="/" /> },
   {
     element: <RequireAuthentication />,
     children: [

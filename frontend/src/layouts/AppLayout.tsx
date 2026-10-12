@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useEffect, useState, type FormEvent } from 'react';
 import './AppLayout.css';
-import { apiRequest, ApiError, clearAccessToken } from '../services/api_client';
+import { apiRequest, ApiError, AUTH_ENABLED, clearAccessToken } from '../services/api_client';
 
 interface Account { display_name: string; email: string }
 interface Course { id: number; code: string; name: string; subject: string }
@@ -126,7 +126,7 @@ export default function AppLayout() {
             <span className="profile-card__copy"><strong>{account?.display_name ?? 'Account'}</strong><small>{account?.email ?? ''}</small></span>
             <span className="material-symbols-outlined">more_vert</span>
           </button>
-          <button className="layout-signout" onClick={() => void signOut()} type="button">Sign out</button>
+          {AUTH_ENABLED && <button className="layout-signout" onClick={() => void signOut()} type="button">Sign out</button>}
         </div>
       </aside>
 

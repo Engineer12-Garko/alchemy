@@ -11,12 +11,12 @@ _ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 
 class Settings(BaseSettings):
     app_env: str = "development"
-    # Temporary prototype mode: all visitors share one workspace without signing in.
-    auth_enabled: bool = False
+    auth_enabled: bool = True
     database_url: str = "sqlite:///./alchemy_local.db"
     jwt_secret: str = "development-only-change-me"
     jwt_expire_minutes: int = 60 * 24 * 7
     frontend_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    ai_provider: str = "auto"
     # OpenAI configuration
     openai_base_url: str = ""
     openai_api_key: str = ""

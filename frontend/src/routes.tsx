@@ -7,6 +7,7 @@ import StudyPlannerPage from './features/planner/StudyPlannerPage'
 import ProgressPageView from './features/progress/ProgressPageView'
 import SettingsPageView from './features/settings/SettingsPageView'
 import TutorWorkspace from './features/tutor_chat/TutorWorkspace'
+import OverviewPage from './features/overview/OverviewPage'
 import AppLayout from './layouts/AppLayout'
 import { RequireAuthentication } from './route-components'
 import { AUTH_ENABLED } from './services/api_client'
@@ -20,7 +21,7 @@ export const router = createBrowserRouter([
         path: '/',
         element: <AppLayout />,
         children: [
-          { index: true, element: <ProgressPageView /> },
+          { index: true, element: <OverviewPage /> },
           { path: 'ai-tutor', element: <TutorWorkspace /> },
           { path: 'resources', element: <CourseMaterials /> },
           { path: 'diagnosis', element: <DiagnosisAndGaps /> },

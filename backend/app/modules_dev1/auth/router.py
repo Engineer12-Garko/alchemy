@@ -7,7 +7,6 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.modules_dev1.auth.models import User
-from app.modules_dev1.auth.schemas import UserProfileResponse
 
 router = APIRouter(prefix="/api/auth", tags=["Auth & Profile"])
 security = HTTPBearer(auto_error=False)
@@ -61,6 +60,3 @@ def get_current_user(
     return user
 
 
-@router.get("/me", response_model=UserProfileResponse)
-def get_profile(current_user: User = Depends(get_current_user)):
-    return current_user

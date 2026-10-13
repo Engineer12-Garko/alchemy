@@ -13,7 +13,7 @@ interface QuizResult {
   score: number
   correct: boolean
   value_correct: boolean
-  reasoning_complete: boolean
+  reasoning_complete: boolean | null
   feedback: string
 }
 
@@ -92,14 +92,14 @@ export default function AdaptiveQuiz() {
       {error && <p className="quiz-api-error" role="alert">{error}</p>}
       {question && <main>
         <div className="quiz-concept-pill">{question.concept}</div>
-        <section className="quiz-live-prompt"><h2>Trace every dependency branch</h2><p className="text-body-lg text-on-surface leading-relaxed">{question.prompt}</p></section>
+        <section className="quiz-live-prompt"><p className="text-body-lg text-on-surface leading-relaxed">{question.prompt}</p></section>
         <form className="quiz-live-form" onSubmit={(event) => void submitAnswer(event)}>
           <label htmlFor="quiz-live-work">Show your working</label>
-          <textarea id="quiz-live-work" onChange={(event) => setWork(event.target.value)} placeholder="Write every chain-rule branch before evaluating…" value={work} />
+          <textarea id="quiz-live-work" onChange={(event) => setWork(event.target.value)} placeholder="Optional: show your working to help explain your answer." value={work} />
           <label htmlFor="quiz-live-answer">Final answer</label>
           <div className="quiz-live-answer"><input id="quiz-live-answer" onChange={(event) => setAnswer(event.target.value)} required value={answer} /><button className="btn-primary" disabled={submitting} type="submit">{submitting ? 'Grading…' : 'Submit answer'}</button></div>
         </form>
-        {result && <section aria-live="polite" className={`quiz-live-result ${result.correct ? 'is-correct' : 'is-incomplete'}`}><div><strong>{result.correct ? 'Correct' : 'Review your reasoning'}</strong><b>{result.score}%</b></div><p>{result.feedback}</p><small>Final value: {result.value_correct ? 'correct' : 'incorrect'} · Branch reasoning: {result.reasoning_complete ? 'complete' : 'incomplete'}</small></section>}
+        {result && <section aria-live="polite" className={`quiz-live-result ${result.correct ? 'is-correct' : 'is-incomplete'}`}><div><strong>{result.correct ? 'Correct' : 'Review your answer'}</strong><b>{result.score}%</b></div><p>{result.feedback}</p><small>Final answer: {result.value_correct ? 'correct' : 'incorrect'}{result.reasoning_complete !== null ? ` · Required reasoning: ${result.reasoning_complete ? 'complete' : 'incomplete'}` : ''}</small></section>}
       </main>}
     </div>
   )

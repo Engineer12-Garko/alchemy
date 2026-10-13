@@ -15,7 +15,7 @@ Run `npm run build` in `frontend` to run the TypeScript project build and create
 
 ## AI and multimodal features
 
-The tutor, generated questions, AI grading for generated questions, worked solutions, image OCR, and audio transcription require an OpenAI-compatible provider. Configure `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL` in the backend environment. Set `OPENAI_TRANSCRIPTION_MODEL` when the provider uses a separate model for `/audio/transcriptions`. The configured provider must support the API endpoints used by the backend. Missing or failed provider configuration is returned as an API error; the app does not substitute mock answers.
+The tutor, generated questions, AI grading for generated questions, worked solutions, image OCR, and audio transcription require a configured AI provider. By default, `AI_PROVIDER=auto` selects OpenAI when `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL` are complete; otherwise it uses Gemini when `GEMINI_API_KEY` and `GEMINI_MODEL` are set. Set `AI_PROVIDER=gemini` to explicitly choose Gemini. Set `OPENAI_TRANSCRIPTION_MODEL` when the OpenAI-compatible provider uses a separate model for `/audio/transcriptions`. The configured provider must support the API endpoints used by the backend. Missing or failed provider configuration is returned as an API error; the app does not substitute mock answers.
 
 Text, Markdown, CSV, and text-based PDF uploads are extracted by the backend. Image handwriting recognition uses the configured vision-capable chat model.
 

@@ -1,0 +1,30 @@
+:is(.studio-shell, .auth-page) :is(p, small, label, button, a, li, time, input, select, textarea, th, td, span:not(.material-symbols-outlined)) {
+  font-size: max(14px, 1em) !important;
+}
+
+:is(.studio-shell, .auth-page) :is(button, a, input:not([type='checkbox']):not([type='radio']), select, textarea, [role='button']) {
+  min-height: 44px !important;
+}
+
+:is(.studio-shell, .auth-page) button {
+  min-width: 44px;
+}
+
+:is(.studio-shell, .auth-page) a {
+  min-width: 44px;
+}
+
+@media (max-width: 700px) {
+  .quiz-generate-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .quiz-generate-form input {
+    width: 100%;
+  }
+
+  .tutor-workspace .composer-actions > div {
+    flex-wrap: wrap;
+  }
+}

@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { apiRequest } from '../../services/api_client'
+import { ApiError, apiRequest } from '../../services/api_client'
 import './tutor-workspace.css'
 import '../../features/assessment/diagnostic-review.css'
 
 type TutorMessage = { role: 'student' | 'tutor'; text: string }
+type TutorHistoryMessage = { role: string; content: string; created_at: string }
+type TutorConversationSummary = { id: string; preview: string; updatedAt: string }
 interface TutorSource { id: number; filename: string; byte_size: number }
 interface TutorProgress { attempts: number; reviews_due: number; mastery: { concept: string; score: number }[] }
-interface TutorAccount { display_name: string }
+interface TutorAccount { display_name?: string; full_name?: string }
 
 const tutorActions = [
   { icon: 'auto_stories', label: 'Explain more simply' },
@@ -37,6 +39,11 @@ function TutorWorkspace() {
   const [recording, setRecording] = useState(false)
   const [processingMedia, setProcessingMedia] = useState(false)
   const [showSessionLog, setShowSessionLog] = useState(false)
+  const [conversationSummaries, setConversationSummaries] = useState<TutorConversationSummary[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const [providerStatus, setProviderStatus] = useState<'unchecked' | 'available' | 'unavailable'>('unchecked')
+  const [showSymbolToolbar, setShowSymbolToolbar] = useState(false)
   const [notice, setNotice] = useState('')
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -62,7 +69,7 @@ function TutorWorkspace() {
         const conversations = await apiRequest<string[]>('/tutor/conversations')
         if (!active || conversations.length === 0) return
         const latest = conversations[0]
-        const history = await apiRequest<{ role: string; content: string }[]>(`/tutor/conversations/${encodeURIComponent(latest)}`)
+        const history = await apiRequest<TutorHistoryMessage[]>(`/tutor/conversations/${encodeURIComponent(latest)}`)
         if (!active) return
         setConversationId(latest)
         setMessages(history.map((item) => ({ role: item.role === 'user' ? 'student' : 'tutor', text: item.content })))
@@ -97,8 +104,12 @@ function TutorWorkspace() {
         body: JSON.stringify({ conversation_id: conversationId, message: text, material_id: selectedMaterialId }),
       })
       setConversationId(result.conversation_id)
+      setProviderStatus('available')
       setMessages((current) => [...current, { role: 'tutor', text: result.reply }])
     } catch (reason) {
+      if (reason instanceof ApiError && (reason.status === 0 || reason.status === 502 || reason.status === 503)) {
+        setProviderStatus('unavailable')
+      }
       const message = reason instanceof Error ? reason.message : 'The tutor could not answer'
       setChatError(message)
       setMessages((current) => current.filter((item, index) => !(index === current.length - 1 && item.role === 'student' && item.text === text)))
@@ -188,6 +199,45 @@ function TutorWorkspace() {
     void sendMessage(undefined, prompt)
   }
 
+  const openConversationHistory = async () => {
+    setShowSessionLog(true)
+    setLoadingHistory(true)
+    setHistoryError('')
+    try {
+      const ids = await apiRequest<string[]>('/tutor/conversations')
+      const summaries = await Promise.all(ids.map(async (id) => {
+        const history = await apiRequest<TutorHistoryMessage[]>(`/tutor/conversations/${encodeURIComponent(id)}`)
+        const firstQuestion = history.find((item) => item.role === 'user')?.content ?? 'Empty conversation'
+        const lastMessage = history.at(-1)
+        return {
+          id,
+          preview: firstQuestion.replace(/\s+/g, ' ').slice(0, 100),
+          updatedAt: lastMessage?.created_at ?? '',
+        }
+      }))
+      setConversationSummaries(summaries)
+    } catch (reason) {
+      setHistoryError(reason instanceof Error ? reason.message : 'Unable to load saved conversations')
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  const selectConversation = async (id: string) => {
+    setLoadingHistory(true)
+    setHistoryError('')
+    try {
+      const history = await apiRequest<TutorHistoryMessage[]>(`/tutor/conversations/${encodeURIComponent(id)}`)
+      setConversationId(id)
+      setMessages(history.map((item) => ({ role: item.role === 'user' ? 'student' : 'tutor', text: item.content })))
+      setShowSessionLog(false)
+    } catch (reason) {
+      setHistoryError(reason instanceof Error ? reason.message : 'Unable to open this conversation')
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
   return (
     <div className="tutor-workspace">
         <header className="topbar">
@@ -208,8 +258,8 @@ function TutorWorkspace() {
               </div>
             </div>
             <div className="tutor-course-header__actions">
-              <span className="socratic-mode"><i /> <strong>Provider-backed tutoring</strong></span>
-              <button onClick={() => setShowSessionLog(true)} type="button"><Icon>history</Icon>Conversation history</button>
+              <span aria-live="polite" className={`socratic-mode is-${providerStatus}`}><i /> <strong>{providerStatus === 'available' ? 'AI provider available' : providerStatus === 'unavailable' ? 'AI provider unavailable' : 'AI provider not checked'}</strong></span>
+              <button onClick={() => void openConversationHistory()} type="button"><Icon>history</Icon>Conversation history</button>
             </div>
           </header>
 
@@ -245,7 +295,7 @@ function TutorWorkspace() {
                 {messages.length === 0 && <p className="tutor-empty-state">Your saved tutor conversation will appear here. Ask a question below to begin.</p>}
                 {messages.map((message, index) => (
                   <article className={`chat-message${message.role === 'student' ? ' chat-message--student' : ' chat-message--tutor'}`} key={`${message.role}-${index}`}>
-                    <div className="chat-message__byline">{message.role === 'student' ? <><span>{account?.display_name ?? 'You'}</span><b><Icon>person</Icon></b></> : <><b className="tutor-avatar">A</b><strong>Alchemy Tutor</strong><span>AI response</span></>}</div>
+                    <div className="chat-message__byline">{message.role === 'student' ? <><span>{account?.display_name ?? account?.full_name ?? 'You'}</span><b><Icon>person</Icon></b></> : <><b className="tutor-avatar">A</b><strong>Alchemy Tutor</strong><span>AI response</span></>}</div>
                     <div className={message.role === 'student' ? 'student-bubble' : 'tutor-response'}><p>{message.text}</p></div>
                   </article>
                 ))}
@@ -263,7 +313,7 @@ function TutorWorkspace() {
                   <div><span className="context-chip"><Icon>attach_file</Icon>{selectedMaterialId ? sources.find((source) => source.id === selectedMaterialId)?.filename : 'No document source selected'}</span><span className="context-chip"><Icon>draw</Icon>Personal scratchpad available</span></div>
                   <span className="composer-sync"><i />{processingMedia ? 'Transcribing media…' : 'Media upload ready'}</span>
                 </div>
-                <div className="symbol-toolbar"><strong>Symbols:</strong>{symbols.map((symbol) => <button aria-label={`Insert ${symbol}`} key={symbol} onClick={() => insertSymbol(symbol)} type="button">{symbol === '\\frac{df}{dx}' ? 'frac' : symbol}</button>)}</div>
+                {showSymbolToolbar && <div className="symbol-toolbar"><strong>Symbols:</strong>{symbols.map((symbol) => <button aria-label={`Insert ${symbol}`} key={symbol} onClick={() => insertSymbol(symbol)} type="button">{symbol === '\\frac{df}{dx}' ? 'frac' : symbol}</button>)}</div>}
                 <textarea
                   aria-label="Reply to Alchemy tutor"
                   onChange={(event) => setDraft(event.target.value)}
@@ -280,9 +330,8 @@ function TutorWorkspace() {
                 />
                 <div className="composer-actions">
                   <div>
-                    <button aria-label="Toggle LaTeX keyboard" onClick={() => showNotice('LaTeX symbol toolbar is ready above the reply box')} title="Toggle LaTeX Keyboard" type="button"><Icon>keyboard</Icon></button>
-                    <button aria-label="Stylus or handwriting canvas" onClick={() => mediaInputRef.current?.click()} title="Upload handwriting for transcription" type="button"><Icon>draw</Icon></button>
-                    <button aria-label="Upload scan or diagram" onClick={() => mediaInputRef.current?.click()} title="Upload Scan / Diagram" type="button"><Icon>add_photo_alternate</Icon></button>
+                    <button aria-label="Toggle math symbols" aria-pressed={showSymbolToolbar} onClick={() => setShowSymbolToolbar((visible) => !visible)} title="Toggle math symbols" type="button"><Icon>keyboard</Icon></button>
+                    <button aria-label="Upload image or handwriting" onClick={() => mediaInputRef.current?.click()} title="Upload image or handwriting" type="button"><Icon>add_photo_alternate</Icon></button>
                     <button aria-label={recording ? 'Stop voice recording' : 'Start voice recording'} disabled={processingMedia} onClick={() => void toggleVoiceRecording()} title={recording ? 'Stop Voice Dictation' : 'Voice Dictation'} type="button"><Icon>{recording ? 'stop' : processingMedia ? 'hourglass_top' : 'mic'}</Icon></button>
                   </div>
                   <span className="send-hint">⌘ + Enter to Send</span>
@@ -317,8 +366,11 @@ function TutorWorkspace() {
       {showSessionLog && (
         <div className="modal-backdrop" onClick={() => setShowSessionLog(false)} role="presentation">
           <section aria-labelledby="session-log-title" aria-modal="true" className="tool-dialog session-log-dialog" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="tool-dialog__heading"><div><span className="eyebrow">{account?.display_name ?? 'Account'}</span><h2 id="session-log-title">Saved tutor conversation</h2></div><button aria-label="Close conversation history" className="icon-button" onClick={() => setShowSessionLog(false)} type="button"><Icon>close</Icon></button></div>
-            {messages.length === 0 ? <p>No messages have been saved in this conversation yet.</p> : messages.map((message, index) => <div className="session-log-entry" key={`${index}-${message.role}`}><strong>{message.role === 'student' ? 'You' : 'Tutor'}</strong><p>{message.text}</p></div>)}
+            <div className="tool-dialog__heading"><div><span className="eyebrow">{account?.display_name ?? account?.full_name ?? 'Account'}</span><h2 id="session-log-title">Saved tutor conversation</h2></div><button aria-label="Close conversation history" className="icon-button" onClick={() => setShowSessionLog(false)} type="button"><Icon>close</Icon></button></div>
+            {historyError && <p className="tutor-api-error" role="alert">{historyError}</p>}
+            {loadingHistory && <p aria-live="polite">Loading saved conversations…</p>}
+            {!loadingHistory && conversationSummaries.length === 0 && <p>No saved conversations yet. Start a chat to build your history.</p>}
+            {!loadingHistory && conversationSummaries.map((conversation) => <button className={`session-log-entry${conversation.id === conversationId ? ' is-current' : ''}`} disabled={loadingHistory} key={conversation.id} onClick={() => void selectConversation(conversation.id)} type="button"><strong>{conversation.preview}</strong><span>{conversation.updatedAt ? new Date(conversation.updatedAt).toLocaleString() : 'Date unavailable'}{conversation.id === conversationId ? ' · Current' : ''}</span></button>)}
           </section>
         </div>
       )}

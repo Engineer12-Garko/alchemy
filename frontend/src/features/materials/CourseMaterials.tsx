@@ -4,14 +4,7 @@ import './course-materials.css'
 import '../../features/assessment/diagnostic-review.css'
 import { apiRequest } from '../../services/api_client'
 
-type MaterialTab = 'All Materials' | 'Uploaded Sources'
 interface MaterialRecord { id: number; filename: string; content_type: string; byte_size: number; created_at: string }
-
-
-const materialTabs: { icon?: string; label: MaterialTab; count?: number }[] = [
-  { label: 'All Materials' },
-  { icon: 'folder_copy', label: 'Uploaded Sources' },
-]
 
 const suggestedPrompts = [
   'Summarize the main ideas in this source.',
@@ -25,7 +18,6 @@ function Icon({ children, className = '' }: { children: string; className?: stri
 
 function CourseMaterials() {
   const navigateTo = useNavigate()
-  const [activeTab, setActiveTab] = useState<MaterialTab>('All Materials')
   const [zoom, setZoom] = useState(100)
   const [documentSearch, setDocumentSearch] = useState('')
   const [query, setQuery] = useState('')
@@ -142,10 +134,6 @@ function CourseMaterials() {
     }
   }
 
-  const tabMessage = activeTab === 'All Materials'
-    ? `${materials.length} uploaded source(s) are available.`
-    : `Showing ${materials.length} uploaded source(s).`
-
   return (
     <div className="materials-main-content">
         <header className="topbar">
@@ -159,11 +147,10 @@ function CourseMaterials() {
         </header>
 
         <main className="main-content materials-main">
-          <div className="materials-breadcrumb">
-            <button onClick={() => navigateTo('/')} type="button">My Courses</button><Icon>chevron_right</Icon>
-            <button onClick={() => navigateTo('/')} type="button">Courses</button><Icon>chevron_right</Icon>
+          <nav aria-label="Breadcrumb" className="materials-breadcrumb">
+            <span>Learning Resources</span><Icon>chevron_right</Icon>
             <strong>Course Materials</strong>
-          </div>
+          </nav>
 
           <section className="materials-heading">
             <div>
@@ -172,7 +159,6 @@ function CourseMaterials() {
             </div>
             <div className="materials-heading__actions">
               <button className="materials-secondary-button" onClick={() => {
-                setActiveTab('Uploaded Sources')
                 document.getElementById('topic-outline')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }} type="button"><Icon>folder_copy</Icon>Browse uploaded sources</button>
               <button className="materials-primary-button" onClick={() => uploadRef.current?.click()} type="button"><Icon>upload_file</Icon>Upload Material</button>
@@ -190,29 +176,6 @@ function CourseMaterials() {
               />
             </div>
           </section>
-
-          <div className="material-tabs" aria-label="Filter course materials" role="tablist">
-            {materialTabs.map((tab) => (
-              <button
-                aria-selected={activeTab === tab.label}
-                className={`material-tab${activeTab === tab.label ? ' is-active' : ''}`}
-                key={tab.label}
-                onClick={() => {
-                  setActiveTab(tab.label)
-                  if (tab.label === 'Uploaded Sources') {
-                    document.getElementById('topic-outline')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }
-                }}
-                role="tab"
-                type="button"
-              >
-                {tab.icon && <Icon>{tab.icon}</Icon>}
-                <span>{tab.label}</span>
-                {tab.count !== undefined && <small>{tab.count}</small>}
-              </button>
-            ))}
-          </div>
-          {activeTab !== 'All Materials' && <p aria-live="polite" className="materials-filter-note">{tabMessage}</p>}
 
           <div className="materials-grid">
             <section aria-label="Uploaded document viewer" className="materials-left" ref={slideRef}>

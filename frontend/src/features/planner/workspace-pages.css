@@ -1,3 +1,91 @@
 .workspace-page { max-width:1120px; margin:0 auto; padding:28px; }.workspace-page>header>span { color:#08786e; font-size:9px; font-weight:700; letter-spacing:.1em; }.workspace-page>header h1 { margin:4px 0 7px; font:700 27px 'Plus Jakarta Sans',sans-serif; }.workspace-page>header p { margin:0; color:#6a788d; font-size:11px; }.workspace-page-columns { display:grid; grid-template-columns:minmax(260px,.75fr) minmax(0,1.25fr); gap:15px; align-items:start; margin-top:20px; }.workspace-panel { margin-top:18px; padding:19px; border:1px solid #e5ebf4; border-radius:12px; background:#fff; }.workspace-page-columns .workspace-panel { margin-top:0; }.workspace-panel h2 { margin:0 0 14px; font:700 14px 'Plus Jakarta Sans',sans-serif; }.workspace-panel form:not(.settings-form) { display:flex; flex-direction:column; gap:12px; }.workspace-panel form>label:not(.settings-reminders) { display:flex; flex-direction:column; gap:5px; color:#41536b; font-size:10px; font-weight:700; }.workspace-panel input:not([type=checkbox]),.workspace-panel select { min-height:37px; padding:7px 9px; border:1px solid #dae3ef; border-radius:7px; font-size:11px; }.workspace-panel form>button { min-height:38px; border:0; border-radius:7px; background:#006a61; color:#fff; font-size:10px; font-weight:700; cursor:pointer; }.workspace-panel form>button:disabled { opacity:.6; }.workspace-empty { padding:22px; color:#758196; font-size:11px; text-align:center; }.task-row { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:11px 0; border-top:1px solid #edf0f5; }.task-row>label { display:flex; gap:8px; align-items:flex-start; }.task-row input[type=checkbox],.settings-reminders input { margin-top:3px; accent-color:#08786e; }.task-row>label span { display:flex; flex-direction:column; gap:4px; }.task-row strong,.mastery-row strong { color:#263a53; font-size:10px; }.task-row small,.mastery-row small { color:#78869a; font-size:8px; }.task-row.is-complete strong { color:#7c8798; text-decoration:line-through; }.task-row>button { padding:5px 7px; border:0; border-radius:5px; background:#fff0ef; color:#a5282c; font-size:8px; cursor:pointer; }.workspace-error { padding:10px; border-radius:7px; background:#ffedeb; color:#a0282d; font-size:10px; }.workspace-success { color:#08786e; font-size:10px; }.workspace-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:19px 0 14px; }.workspace-metrics article { display:flex; flex-direction:column; gap:9px; padding:15px; border:1px solid #e5ebf4; border-radius:10px; background:#fff; }.workspace-metrics small { color:#708095; font-size:9px; }.workspace-metrics strong { color:#0e1c2f; font:700 22px 'Plus Jakarta Sans',sans-serif; }.mastery-row { display:grid; grid-template-columns:1fr auto; gap:8px 12px; align-items:center; padding:12px 0; border-top:1px solid #edf0f5; }.mastery-row>div { display:flex; flex-direction:column; gap:4px; }.mastery-row>b { color:#08786e; font-size:11px; }.mastery-row>i { grid-column:1/-1; height:5px; border-radius:8px; background:#e7edf5; }.mastery-row>i>span { display:block; height:100%; border-radius:inherit; background:#08786e; }.settings-form { display:flex; max-width:560px; flex-direction:column; gap:13px; }.settings-form>label { display:flex; flex-direction:column; gap:5px; color:#41536b; font-size:10px; font-weight:700; }.settings-form .settings-reminders { flex-direction:row; align-items:center; }.settings-form>button { min-height:38px; border:0; border-radius:7px; background:#006a61; color:white; font-size:10px; font-weight:700; cursor:pointer; }
 @media(max-width:800px){.workspace-page{padding:18px 12px}.workspace-page>header h1{font-size:23px}.workspace-page-columns{grid-template-columns:1fr}.workspace-metrics{grid-template-columns:1fr}}
-.review-quality { display:flex !important; flex-direction:row !important; gap:4px !important; }.review-quality button { width:25px; height:25px; border:1px solid #dce5ef; border-radius:5px; background:#fff; color:#006a61; font-size:9px; font-weight:700; cursor:pointer; }.review-quality button:hover { background:#e0f4f0; }
+.review-quality { grid-column:1 / -1; display:grid !important; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px !important; }.review-quality button { display:flex; min-height:52px; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:5px; border:1px solid #dce5ef; border-radius:7px; background:#fff; color:#006a61; cursor:pointer; }.review-quality button:hover { background:#e0f4f0; }.review-quality button span { font-size:12px; font-weight:700; }.review-quality button small { color:#52647b; font-size:9px; line-height:1.2; text-align:center; }
+@media(max-width:800px){.review-quality{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.planner-undo-toast { position:fixed; z-index:30; right:24px; bottom:24px; display:flex; max-width:calc(100vw - 32px); align-items:center; gap:16px; padding:12px 16px; border:1px solid #dce5ef; border-radius:10px; background:#0e1c2f; color:#fff; box-shadow:0 8px 24px rgb(14 28 47 / 20%); }
+.planner-undo-toast button { min-height:44px; padding:8px 14px; border:0; border-radius:7px; background:#86f2e4; color:#0e1c2f; font-weight:700; cursor:pointer; }
+@media(max-width:600px){.planner-undo-toast{right:12px;bottom:12px;left:12px;justify-content:space-between}}
+
+/* Keep the planner and shared workspace pages inside the space left by the app shell. */
+.workspace-page {
+  width: 100%;
+  min-width: 0;
+  padding: clamp(16px, 2.5vw, 28px);
+}
+
+.workspace-page-columns {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+}
+
+.workspace-panel,
+.workspace-metrics article {
+  min-width: 0;
+}
+
+.task-row,
+.task-row > label,
+.task-row > label span {
+  min-width: 0;
+}
+
+.task-row > label span,
+.task-row strong {
+  overflow-wrap: anywhere;
+}
+
+.task-row > button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1050px) {
+  .workspace-page-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace-page {
+    padding: 18px 14px;
+  }
+
+  .workspace-page > header h1 {
+    font-size: clamp(22px, 6vw, 27px);
+  }
+
+  .workspace-page > header p {
+    line-height: 1.5;
+  }
+
+  .workspace-page-columns {
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .workspace-panel {
+    padding: 16px;
+  }
+
+  .workspace-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  .workspace-page {
+    padding: 16px 10px;
+  }
+
+  .workspace-panel {
+    padding: 14px;
+  }
+
+  .workspace-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .planner-undo-toast {
+    gap: 8px;
+    padding: 10px;
+  }
+}

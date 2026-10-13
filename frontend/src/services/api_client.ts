@@ -1,6 +1,6 @@
 const localApi = 'http://127.0.0.1:8000/api'
 const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-export const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED === 'true'
+export const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false'
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() || (isLocalHost ? localApi : '/api')
 

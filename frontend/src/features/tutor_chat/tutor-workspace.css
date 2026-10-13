@@ -130,6 +130,11 @@
   background: #69c9bc;
 }
 
+.socratic-mode.is-unchecked i { background: #98a4b5; }
+.socratic-mode.is-available i { background: #16804c; }
+.socratic-mode.is-unavailable i { background: #ba1a1a; }
+.socratic-mode.is-unavailable strong { color: #a5282d; }
+
 .socratic-mode strong {
   color: var(--teal);
   font-weight: 700;
@@ -1413,19 +1418,32 @@
 
 .session-log-dialog {
   display: flex;
+  width: min(560px, 100%);
+  max-height: min(80vh, 640px);
   flex-direction: column;
+  overflow-y: auto;
   gap: 9px;
 }
 
 .session-log-entry {
+  width: 100%;
   padding: 9px;
+  border: 1px solid transparent;
   border-radius: 7px;
   background: var(--surface-low);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-log-entry:hover,
+.session-log-entry.is-current {
+  border-color: #9bcfc7;
+  background: #e4f5f1;
 }
 
 .session-log-entry > span {
   color: var(--teal);
-  font-size: 7px;
   font-weight: 700;
 }
 
@@ -1436,11 +1454,10 @@
   font-size: 9px;
 }
 
-.session-log-entry > p {
-  margin: 3px 0 0;
+.session-log-entry > span {
+  display: block;
+  margin-top: 4px;
   color: #637087;
-  font-size: 8px;
-  line-height: 1.45;
 }
 
 @media (min-width: 1200px) {

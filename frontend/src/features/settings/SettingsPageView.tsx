@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { apiRequest } from '../../services/api_client'
 import '../planner/workspace-pages.css'
 
-interface Account { display_name: string; email: string; preferences: Record<string, unknown> }
+interface Account { display_name?: string; full_name?: string; email: string; preferences?: Record<string, unknown> }
 
 export default function SettingsPageView() {
   const [account, setAccount] = useState<Account | null>(null)
@@ -19,10 +19,10 @@ export default function SettingsPageView() {
       .then((data) => {
         if (!active) return
         setAccount(data)
-        setName(data.display_name)
-        setGoal(String(data.preferences.weekly_goal_hours ?? 8))
-        setModality(String(data.preferences.preferred_modality ?? 'visual'))
-        setReminders(data.preferences.reminders_enabled !== false)
+        setName(data.display_name ?? data.full_name ?? '')
+        setGoal(String(data.preferences?.weekly_goal_hours ?? 8))
+        setModality(String(data.preferences?.preferred_modality ?? 'visual'))
+        setReminders(data.preferences?.reminders_enabled !== false)
       })
       .catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : 'Unable to load account preferences') })
     return () => { active = false }

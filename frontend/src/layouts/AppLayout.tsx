@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import './AppLayout.css';
 import { apiRequest, ApiError, AUTH_ENABLED, clearAccessToken } from '../services/api_client';
 
-interface Account { display_name: string; email: string }
+interface Account { display_name?: string; full_name?: string; email: string }
 interface Course { id: number; code: string; name: string; subject: string }
 interface ProgressSummary { attempts: number; reviews_due: number }
 
@@ -103,12 +103,13 @@ export default function AppLayout() {
           <nav aria-label="Main navigation" className="side-nav">
             {navigation.map((item) => (
               <NavLink
+                aria-label={item.label}
                 key={item.label}
                 to={item.path}
                 className={({ isActive }) =>
                   `side-nav__item${isActive ? ' is-active' : ''}`}
               >
-                <span className="material-symbols-outlined">{item.icon}</span>
+                <span aria-hidden="true" className="material-symbols-outlined">{item.icon}</span>
                 <span>{item.label}</span>
               </NavLink>
             ))}
@@ -123,7 +124,7 @@ export default function AppLayout() {
           </div>
           <button className="profile-card" type="button" onClick={() => navigate('/settings')}>
             <span className="profile-card__avatar"><span className="material-symbols-outlined">person</span></span>
-            <span className="profile-card__copy"><strong>{account?.display_name ?? 'Account'}</strong><small>{account?.email ?? ''}</small></span>
+            <span className="profile-card__copy"><strong>{account?.display_name ?? account?.full_name ?? 'Account'}</strong><small>{account?.email ?? ''}</small></span>
             <span className="material-symbols-outlined">more_vert</span>
           </button>
           {AUTH_ENABLED && <button className="layout-signout" onClick={() => void signOut()} type="button">Sign out</button>}

@@ -13,7 +13,10 @@
 }
 
 .studio-shell {
+  width: 100%;
+  min-width: 0;
   min-height: 100vh;
+  overflow-x: clip;
 }
 
 .sidebar {
@@ -25,6 +28,7 @@
   flex-direction: column;
   justify-content: space-between;
   overflow-y: auto;
+  min-width: 0;
   background: #eff4ff;
   box-shadow: 1px 0 10px rgb(14 28 47 / 5%);
 }
@@ -329,8 +333,12 @@
 }
 
 .profile-card__copy small {
+  display: block;
+  overflow: hidden;
   color: #718096;
   font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-card > .material-symbols-outlined {
@@ -508,6 +516,7 @@
 
 .main-content {
   width: min(100%, 1600px);
+  min-width: 0;
   margin: 0 auto;
   padding: 10px 20px 24px;
 }
@@ -638,13 +647,13 @@
 }
 
 @media (max-width: 980px) {
-  .sidebar { width: 164px; }
-  .workspace { margin-left: 164px; }
+  .sidebar { width: 210px; }
+  .workspace { margin-left: 210px; }
   .brand { gap: 7px; padding-right: 9px; padding-left: 10px; }
-  .brand__mark { width: 27px; height: 27px; border-radius: 7px; font-size: 13px; }
-  .brand__name strong { font-size: 13px; }
-  .brand__name small { font-size: 8px; }
-  .brand__version { padding: 3px 5px; font-size: 7px; }
+  .brand__version { padding: 3px 5px; }
+  .course-select { width: calc(100% - 12px); gap: 5px; margin-right: 6px; margin-left: 6px; padding-right: 6px; padding-left: 6px; }
+  .course-select > .material-symbols-outlined:first-child,
+  .course-select__text > small { display: none; }
   .main-content { padding-right: 12px; padding-left: 12px; }
   .topbar { gap: 8px; padding-right: 11px; padding-left: 11px; }
 }
@@ -653,7 +662,7 @@
   .review-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 760px) {
   .sidebar {
     position: sticky;
     inset: auto;
@@ -676,8 +685,8 @@
     padding: 0 6px;
   }
   .side-nav__item {
-    min-width: 36px;
-    min-height: 34px;
+    min-width: 44px;
+    min-height: 44px;
     justify-content: center;
     padding: 6px;
   }

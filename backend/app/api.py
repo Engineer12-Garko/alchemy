@@ -169,32 +169,49 @@ def _is_gemini_key(api_key: str) -> bool:
     return api_key.startswith(("AIza", "AQ"))
 
 
-def configured_ai() -> tuple[str, str, str, str]:
-    """Return (base_url, api_key, model, provider) based on configured settings.
-    
-    Provider is determined by the API key prefix:
-    - Keys starting with "AIza" or "AQ" → Gemini
-    - Other keys → OpenAI (default)
-    """
-    # Check Gemini key first (from dedicated gemini_api_key field)
-    gemini_key = settings.gemini_api_key or settings.openai_api_key
-    is_gemini = _is_gemini_key(gemini_key)
-    
-    if is_gemini:
-        base_url = settings.gemini_base_url.rstrip("/") if settings.gemini_base_url else GEMINI_BASE_URL
-        key = gemini_key
-        model = settings.gemini_model if settings.gemini_model else settings.openai_model
-        # For Gemini, we need to ensure model is set
-        if not model:
-            raise HTTPException(status_code=503, detail="Gemini model not configured: set GEMINI_MODEL in .env")
-        provider = "gemini"
+def _provider_connection_detail(provider_name: str, base_url: str, error: httpx.RequestError) -> str:
+    """Build a useful connection error without returning credential-bearing URLs."""
+    host = httpx.URL(base_url).host or "the configured host"
+    if isinstance(error, httpx.TimeoutException):
+        problem = "timed out"
+    elif isinstance(error, httpx.ConnectError):
+        problem = "could not connect"
     else:
+        problem = "failed before receiving an HTTP response"
+    return (
+        f"Could not reach the configured {provider_name} provider at {host}: {problem} "
+        f"({type(error).__name__}). Check the backend's outbound network access and provider URL."
+    )
+
+
+def configured_ai() -> tuple[str, str, str, str]:
+    """Select an explicit provider or the best complete configuration."""
+    provider = settings.ai_provider.strip().lower()
+    if provider == "auto":
+        if settings.openai_base_url and settings.openai_api_key and settings.openai_model:
+            provider = "openai"
+        elif settings.gemini_api_key or _is_gemini_key(settings.openai_api_key):
+            provider = "gemini"
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail="AI provider configuration is incomplete: configure OpenAI settings or GEMINI_API_KEY and GEMINI_MODEL.",
+            )
+
+    if provider == "gemini":
+        base_url = settings.gemini_base_url.rstrip("/") if settings.gemini_base_url else GEMINI_BASE_URL
+        key = settings.gemini_api_key or (settings.openai_api_key if _is_gemini_key(settings.openai_api_key) else "")
+        model = settings.gemini_model
+        if not key or not model:
+            raise HTTPException(status_code=503, detail="Gemini configuration is incomplete: set GEMINI_API_KEY and GEMINI_MODEL.")
+    elif provider == "openai":
         base_url = settings.openai_base_url.rstrip("/")
-        if not base_url or not gemini_key or not settings.openai_model:
-            raise HTTPException(status_code=503, detail="AI provider configuration is incomplete: set OPENAI_BASE_URL, OPENAI_API_KEY and OPENAI_MODEL (or GEMINI_API_KEY).")
+        if not base_url or not settings.openai_api_key or not settings.openai_model:
+            raise HTTPException(status_code=503, detail="OpenAI configuration is incomplete: set OPENAI_BASE_URL, OPENAI_API_KEY and OPENAI_MODEL.")
         key = settings.openai_api_key
         model = settings.openai_model
-        provider = "openai"
+    else:
+        raise HTTPException(status_code=503, detail="Unsupported AI_PROVIDER. Choose 'auto', 'openai', or 'gemini'.")
     
     return base_url, key, model, provider
 
@@ -250,7 +267,10 @@ async def provider_chat(messages: list[dict[str, Any]], temperature: float = 0.3
                     json={"model": model, "messages": messages, "temperature": temperature},
                 )
     except httpx.RequestError as error:
-        raise HTTPException(status_code=502, detail=f"Could not reach configured AI provider: {error}") from error
+        raise HTTPException(
+            status_code=502,
+            detail=_provider_connection_detail("AI", base_url, error),
+        ) from error
     
     if response.is_error:
         raise HTTPException(status_code=502, detail=f"AI provider returned HTTP {response.status_code}: {response.text[:400]}")
@@ -555,7 +575,9 @@ async def grade_quiz(payload: QuizGradeRequest, user: CurrentUser, db: Db) -> di
         except (ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             raise HTTPException(status_code=502, detail="AI provider returned an invalid quiz grade") from error
         value_correct = correct
-        reasoning_complete = bool(payload.work.strip())
+        # Free-response grading does not have a reliable, question-specific
+        # reasoning rubric, so do not infer completion from non-empty work.
+        reasoning_complete = None
     db.add(LearningEvent(
         owner_id=user.id, course_id=payload.course_id, concept=question.concept, event_type="quiz_attempt",
         correct=score >= 70, score=score,
@@ -813,7 +835,10 @@ async def transcribe_audio(user: CurrentUser, file: UploadFile = File(...)) -> d
                 files={"file": (filename, content, file.content_type or "application/octet-stream")},
             )
     except httpx.RequestError as error:
-        raise HTTPException(status_code=502, detail=f"Could not reach configured transcription provider: {error}") from error
+        raise HTTPException(
+            status_code=502,
+            detail=_provider_connection_detail("transcription", base_url, error),
+        ) from error
     if response.is_error:
         raise HTTPException(status_code=502, detail=f"Transcription provider returned HTTP {response.status_code}: {response.text[:400]}")
     try:

@@ -7,8 +7,38 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() || (isLocalHost
 const TOKEN_KEY = 'synapse.accessToken'
 
 export interface ApiErrorShape {
-  detail?: string
+  detail?: unknown
   message?: string
+}
+
+function formatApiError(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    const messages = value.map((entry) => {
+      if (typeof entry === 'string') return entry
+      if (typeof entry !== 'object' || entry === null) return undefined
+      const item = entry as { loc?: unknown; msg?: unknown; message?: unknown }
+      const message = typeof item.msg === 'string'
+        ? item.msg
+        : typeof item.message === 'string' ? item.message : undefined
+      if (!message) return undefined
+      const location = Array.isArray(item.loc)
+        ? item.loc.filter((part) => typeof part === 'string' && !['body', 'query', 'path'].includes(part)).join(' → ')
+        : ''
+      return location ? `${location}: ${message}` : message
+    }).filter((message): message is string => Boolean(message))
+    return messages.length ? messages.join('; ') : undefined
+  }
+  if (typeof value === 'object' && value !== null) {
+    const item = value as ApiErrorShape
+    if (typeof item.message === 'string') return item.message
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return undefined
+    }
+  }
+  return undefined
 }
 
 export class ApiError extends Error {
@@ -64,9 +94,12 @@ export async function apiRequest<T>(
       clearAccessToken()
       window.location.assign('/auth')
     }
-    const detail = typeof body === 'object' && body !== null && 'detail' in body
+    const errorBody = typeof body === 'object' && body !== null && 'detail' in body
       ? (body as ApiErrorShape).detail
-      : typeof body === 'string' ? body : undefined
+      : typeof body === 'object' && body !== null && 'message' in body
+        ? (body as ApiErrorShape).message
+        : body
+    const detail = formatApiError(errorBody)
     throw new ApiError(detail || `Request failed with HTTP ${response.status}`, response.status)
   }
   return body as T

@@ -267,7 +267,7 @@ function CourseMaterials() {
           <footer className="integrity-footer">
             <span className="integrity-footer__icon"><Icon>verified_user</Icon></span>
             <span className="integrity-footer__copy"><strong>Source handling</strong><small>Uploaded text is supplied to the tutor when a source is selected. Check generated guidance against your course materials.</small></span>
-            <span className="integrity-footer__actions"><button onClick={() => { setActiveTab('All Materials'); document.querySelector('.materials-left')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} type="button">View extracted materials</button><button onClick={downloadNotes} type="button">Export Slide Notes</button></span>
+            <span className="integrity-footer__actions"><button onClick={() => document.querySelector('.materials-left')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} type="button">View extracted materials</button><button onClick={downloadNotes} type="button">Export Slide Notes</button></span>
           </footer>
         </main>
       {toast && <div aria-live="polite" className="toast">{toast}</div>}

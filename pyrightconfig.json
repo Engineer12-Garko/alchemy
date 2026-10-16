@@ -1,0 +1,12 @@
+{
+  "include": ["backend", "api"],
+  "executionEnvironments": [
+    {
+      "root": "api",
+      "extraPaths": ["backend"]
+    },
+    {
+      "root": "backend"
+    }
+  ]
+}

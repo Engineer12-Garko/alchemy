@@ -1,10 +1,11 @@
 from datetime import datetime
-from sqlalchemy import Column, String, Float, Integer, DateTime
+from sqlalchemy import Column, String, Float, Integer, DateTime, UniqueConstraint
 from app.core.database import Base
 
 
 class UserMastery(Base):
     __tablename__ = "user_mastery"
+    __table_args__ = (UniqueConstraint("user_id", "course_id", "concept_id", name="uq_mastery_user_course_concept"),)
 
     id = Column(String, primary_key=True)  # Format: {user_id}_{concept_id}
     user_id = Column(String, index=True, nullable=False)
@@ -23,6 +24,7 @@ class UserMastery(Base):
 
 class MisconceptionLog(Base):
     __tablename__ = "misconception_logs"
+    __table_args__ = (UniqueConstraint("user_id", "course_id", "concept_id", "misconception_tag", name="uq_misconception_user_course_concept_tag"),)
 
     id = Column(String, primary_key=True)  # Format: {user_id}_{concept_id}_{misconception_tag}
     user_id = Column(String, index=True, nullable=False)

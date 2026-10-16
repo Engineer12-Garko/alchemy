@@ -99,7 +99,7 @@ export default function AdaptiveQuiz() {
           <label htmlFor="quiz-live-answer">Final answer</label>
           <div className="quiz-live-answer"><input id="quiz-live-answer" onChange={(event) => setAnswer(event.target.value)} required value={answer} /><button className="btn-primary" disabled={submitting} type="submit">{submitting ? 'Grading…' : 'Submit answer'}</button></div>
         </form>
-        {result && <section aria-live="polite" className={`quiz-live-result ${result.correct ? 'is-correct' : 'is-incomplete'}`}><div><strong>{result.correct ? 'Correct' : 'Review your answer'}</strong><b>{result.score}%</b></div><p>{result.feedback}</p><small>Final answer: {result.value_correct ? 'correct' : 'incorrect'}{result.reasoning_complete !== null ? ` · Required reasoning: ${result.reasoning_complete ? 'complete' : 'incomplete'}` : ''}</small></section>}
+        {result && <section aria-live="polite" className={`quiz-live-result ${result.correct ? 'is-correct' : 'is-incomplete'}`}><div><strong>{result.correct ? 'Correct' : 'Review your answer'}</strong><b>{result.score}%</b></div><p>{result.feedback}</p><small>Final answer: {result.value_correct ? 'correct' : 'incorrect'}{result.reasoning_complete !== null ? ` · Branch reasoning: ${result.reasoning_complete ? 'complete' : 'incomplete'}` : ''}</small></section>}
       </main>}
     </div>
   )

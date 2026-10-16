@@ -1,167 +1,115 @@
-#!/usr/bin/env python
-"""Critical Auth Testing Script for Alchemy Academy."""
+"""Isolated end-to-end smoke tests for the HTTP authentication workflow."""
+
 import os
 import sys
+import tempfile
 from pathlib import Path
+from uuid import uuid4
 
-# Add both the repo root and the backend package root to the import path.
-# The project imports use the top-level package name "app" from within backend/app,
-# while the verification script also imports backend.app.main from the repo root.
 REPO_ROOT = Path(__file__).resolve().parent
-BACKEND_ROOT = REPO_ROOT / 'backend'
-sys.path.insert(0, str(REPO_ROOT))
+BACKEND_ROOT = REPO_ROOT / "backend"
 sys.path.insert(0, str(BACKEND_ROOT))
 
-try:
-    sys.stdout.reconfigure(encoding='utf-8')
-except (AttributeError, ValueError):
-    pass
+# Set these before importing the app so tests never touch a developer or
+# production database, even when those environment variables are already set.
+_db_fd, _db_path = tempfile.mkstemp(prefix="alchemy-auth-", suffix=".db")
+os.close(_db_fd)
+os.environ["DATABASE_URL"] = f"sqlite:///{_db_path.replace(os.sep, '/') }"
+os.environ["APP_ENV"] = "development"
+os.environ["AUTH_ENABLED"] = "true"
+os.environ["JWT_SECRET"] = "isolated-auth-test-secret-at-least-32-chars"
+os.environ.pop("VERCEL", None)
 
-def test_auth_router_configuration():
-    """Test 1: Verify auth router has correct prefix."""
-    print("=" * 60)
-    print("TEST 1: Auth Router Configuration")
-    print("=" * 60)
-    
+from fastapi.testclient import TestClient  # noqa: E402
+from app.main import app  # noqa: E402
+from app.core.database import engine  # noqa: E402
+
+
+def main() -> int:
+    client = TestClient(app)
+    suffix = uuid4().hex
+    email = f"auth-test-{suffix}@example.com"
+    password = "correct-horse-battery-staple"
     try:
-        from backend.app.modules_dev1.auth.router import router as auth_router
-        print("[PASS] Auth router imported successfully")
-        print(f"  Prefix: {auth_router.prefix}")
-        print(f"  Tags: {auth_router.tags}")
-        
-        # Check routes
-        routes_list = []
-        for route in auth_router.routes:
-            if hasattr(route, 'path') and hasattr(route, 'methods'):
-                route_info = f"{list(route.methods)} {route.path}"
-                routes_list.append(route_info)
-        
-        print(f"\n  Routes defined: {len(routes_list)}")
-        for route in routes_list:
-            print(f"  {route}")
-        
-        # Verify expected routes
-        expected_paths = ['/api/auth/register', '/api/auth/login', '/api/auth/me']
-        found_paths = [r for r in routes_list if any(p in r for p in expected_paths)]
-        
-        if len(found_paths) >= 2:  # At least register and login should be present
-            print("\n[PASS] Auth routes correctly configured")
-            return True
-        else:
-            print(f"\n[FAIL] Expected routes not found. Found: {found_paths}")
-            return False
+        route_keys = [
+            (method, route.path)
+            for route in app.routes
+            if hasattr(route, "methods")
+            for method in (route.methods or set())
+            if method not in {"HEAD", "OPTIONS"}
+        ]
+        duplicates = sorted({key for key in route_keys if route_keys.count(key) > 1})
+        assert not duplicates, f"Duplicate method/path routes: {duplicates}"
 
-    except ImportError as e:
-        print(f"\n[FAIL] Could not import auth router: {e}")
-        return False
-    except Exception as e:
-        print(f"\n[FAIL] Error checking auth router: {e}")
-        return False
+        response = client.get("/api/auth/me")
+        assert response.status_code == 401, response.text
+
+        response = client.post(
+            "/api/auth/register",
+            json={"email": email, "password": password, "display_name": "Test Learner"},
+        )
+        assert response.status_code == 201, response.text
+        registered = response.json()
+        assert registered["access_token"]
+        assert registered["user"]["email"] == email
+
+        duplicate = client.post(
+            "/api/auth/register",
+            json={"email": email, "password": password, "display_name": "Test Learner"},
+        )
+        assert duplicate.status_code == 409, duplicate.text
+
+        login = client.post("/api/auth/login", json={"email": email, "password": password})
+        assert login.status_code == 200, login.text
+        token = login.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        me = client.get("/api/auth/me", headers=headers)
+        assert me.status_code == 200, me.text
+        assert me.json()["id"] == registered["user"]["id"]
+
+        invalid_login = client.post(
+            "/api/auth/login", json={"email": email, "password": "wrong-password"}
+        )
+        assert invalid_login.status_code == 401, invalid_login.text
+
+        sample = client.get("/api/quizzes/sample", headers=headers)
+        assert sample.status_code == 200, sample.text
+        grade = client.post(
+            "/api/quizzes/grade",
+            headers=headers,
+            json={"question_id": sample.json()["id"], "answer": "2", "work": ""},
+        )
+        assert grade.status_code == 200, grade.text
+        assert grade.json()["correct"] is True
+        assert grade.json()["score"] == 100
+        assert grade.json()["reasoning_complete"] is None
+
+        # Repeated unscoped review writes must target the same row despite SQL
+        # NULL uniqueness semantics.
+        grade_again = client.post(
+            "/api/quizzes/grade",
+            headers=headers,
+            json={"question_id": sample.json()["id"], "answer": "2", "work": ""},
+        )
+        assert grade_again.status_code == 200, grade_again.text
+        reviews = client.get("/api/scheduler/reviews", headers=headers)
+        assert reviews.status_code == 200, reviews.text
+        assert len(reviews.json()) == 1
+
+        print("PASS: auth flow, route uniqueness, optional-work grading, and unscoped review reuse")
+        return 0
+    finally:
+        client.close()
+        engine.dispose()
+        try:
+            os.remove(_db_path)
+        except OSError:
+            pass
 
 
-def iter_route_paths(router):
-    """Flatten nested FastAPI router entries into a single list of route paths."""
-    for route in getattr(router, 'routes', []):
-        if hasattr(route, 'path'):
-            yield route.path
-        elif hasattr(route, 'original_router'):
-            yield from iter_route_paths(route.original_router)
-
-
-def test_fastapi_app_routes():
-    """Test 2: Verify FastAPI app has correct auth routes."""
-    print("\n" + "=" * 60)
-    print("TEST 2: FastAPI App Routes")
-    print("=" * 60)
-
+if __name__ == "__main__":
     try:
-        from backend.app.main import app
-        print("[PASS] FastAPI app imported successfully")
-
-        api_routes = [path for path in iter_route_paths(app.router) if path.startswith('/api')]
-
-        print(f"\nTotal /api routes: {len(api_routes)}")
-        for route in sorted(set(api_routes)):
-            print(f"  {route}")
-
-        auth_paths = [p for p in api_routes if '/auth' in p]
-        print(f"\n/api/auth routes: {len(auth_paths)}")
-        for p in auth_paths:
-            print(f"  {p}")
-
-        has_register = any('/register' in p for p in auth_paths)
-        has_login = any('/login' in p for p in auth_paths)
-        has_me = any('/me' in p for p in auth_paths)
-
-        print(f"\n  Has /register: {has_register}")
-        print(f"  Has /login: {has_login}")
-        print(f"  Has /me: {has_me}")
-
-        if has_register and has_login and has_me:
-            print("\n[PASS] All expected auth routes present")
-            return True
-        else:
-            missing = []
-            if not has_register: missing.append('/register')
-            if not has_login: missing.append('/login')
-            if not has_me: missing.append('/me')
-            print(f"\n[FAIL] Missing routes: {missing}")
-            return False
-
-    except ImportError as e:
-        print(f"\n[FAIL] Could not import FastAPI app: {e}")
-        return False
-    except Exception as e:
-        print(f"\n[FAIL] Error checking FastAPI app: {e}")
-        return False
-
-
-def test_no_duplicate_auth():
-    """Test 3: Verify no duplicate auth router mounts."""
-    print("\n" + "=" * 60)
-    print("TEST 3: No Duplicate Auth Router Mounts")
-    print("=" * 60)
-
-    try:
-        from backend.app.main import app
-
-        api_routes = [path for path in iter_route_paths(app.router) if path.startswith('/api')]
-        auth_route_count = sum(1 for p in api_routes if '/auth' in p)
-
-        print(f"\n/api/auth route count in app: {auth_route_count}")
-
-        if auth_route_count >= 2:
-            print("\n[PASS] Multiple auth routes present (single router source)")
-            return True
-        else:
-            print(f"\n[FAIL] Expected multiple auth routes, found {auth_route_count}")
-            return False
-
-    except Exception as e:
-        print(f"\n[FAIL] Error checking duplicate auth: {e}")
-        return False
-
-
-if __name__ == '__main__':
-    print("\n" + "=" * 60)
-    print("CRITICAL AUTH TESTING FOR ALCHEMY ACADEMY")
-    print("=" * 60 + "\n")
-    
-    results = []
-    results.append(test_auth_router_configuration())
-    results.append(test_fastapi_app_routes())
-    results.append(test_no_duplicate_auth())
-    
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-    print(f"Tests passed: {sum(results)}/{len(results)}")
-    
-    if all(results):
-        print("\n[PASS] ALL TESTS PASSED - Auth configuration is correct")
-        print("\nNext step: Redeploy to Vercel to apply fixes")
-    else:
-        print("\n[FAIL] SOME TESTS FAILED - Review the output above")
-        print("\nNext step: Fix the failing tests before deploying")
-    
-    sys.exit(0 if all(results) else 1)
+        raise SystemExit(main())
+    except Exception as error:
+        print(f"FAIL: {error}", file=sys.stderr)
+        raise

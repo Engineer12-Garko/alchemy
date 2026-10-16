@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List
+from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.shared.review_event import ReviewEvent
@@ -10,13 +11,16 @@ from app.modules_dev1.scheduler.fsrs import update_memory_state, calculate_reten
 class LearnerModelService:
     @staticmethod
     def sync_review_event(db: Session, event: ReviewEvent) -> UserMastery:
-        record_id = f"{event.user_id}_{event.concept_id}"
-        mastery = db.query(UserMastery).filter(UserMastery.id == record_id).first()
+        mastery = db.query(UserMastery).filter(
+            UserMastery.user_id == event.user_id,
+            UserMastery.course_id == event.course_id,
+            UserMastery.concept_id == event.concept_id,
+        ).first()
         now = datetime.utcnow()
 
         if not mastery:
             mastery = UserMastery(
-                id=record_id,
+                id=str(uuid4()),
                 user_id=event.user_id,
                 course_id=event.course_id,
                 concept_id=event.concept_id,
@@ -79,8 +83,12 @@ class LearnerModelService:
 
     @staticmethod
     def _log_misconception(db: Session, event: ReviewEvent):
-        tag_id = f"{event.user_id}_{event.concept_id}_{event.misconception_tag}"
-        record = db.query(MisconceptionLog).filter(MisconceptionLog.id == tag_id).first()
+        record = db.query(MisconceptionLog).filter(
+            MisconceptionLog.user_id == event.user_id,
+            MisconceptionLog.course_id == event.course_id,
+            MisconceptionLog.concept_id == event.concept_id,
+            MisconceptionLog.misconception_tag == event.misconception_tag,
+        ).first()
 
         if record:
             record.occurrences += 1
@@ -88,7 +96,7 @@ class LearnerModelService:
             record.status = "open"
         else:
             record = MisconceptionLog(
-                id=tag_id,
+                id=str(uuid4()),
                 user_id=event.user_id,
                 course_id=event.course_id,
                 concept_id=event.concept_id,

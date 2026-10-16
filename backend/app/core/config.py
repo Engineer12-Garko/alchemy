@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     def validate_production_secrets(self) -> "Settings":
         if self.is_production and self.auth_enabled and self.jwt_secret == "development-only-change-me":
             raise ValueError("JWT_SECRET must be set to a secure value in production")
+        if self.is_production and self.auth_enabled and len(self.jwt_secret.encode("utf-8")) < 32:
+            raise ValueError("JWT_SECRET must contain at least 32 bytes in production")
         if self.is_production and not self.database_url.startswith(("postgres://", "postgresql://", "postgresql+psycopg://")):
             raise ValueError("DATABASE_URL must use a persistent PostgreSQL database in production")
         if self.jwt_expire_minutes < 1:

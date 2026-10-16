@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
 from app.modules_dev1.auth.models import User
 from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column
@@ -81,7 +81,23 @@ class ReviewItem(Base):
     ease_factor: Mapped[float] = mapped_column(Float, default=2.5)
     due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
     last_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    __table_args__ = (UniqueConstraint("owner_id", "concept", name="uq_review_owner_concept"),)
+    # NULL course IDs need their own uniqueness rule: SQL treats NULL values as
+    # distinct in unique constraints, so a single three-column constraint is
+    # insufficient for unscoped reviews.
+    __table_args__ = (
+        Index(
+            "uq_review_owner_course_concept",
+            "owner_id", "course_id", "concept", unique=True,
+            postgresql_where=course_id.is_not(None),
+            sqlite_where=course_id.is_not(None),
+        ),
+        Index(
+            "uq_review_owner_unscoped_concept",
+            "owner_id", "concept", unique=True,
+            postgresql_where=course_id.is_(None),
+            sqlite_where=course_id.is_(None),
+        ),
+    )
 
 
 class PlannerTask(Base):

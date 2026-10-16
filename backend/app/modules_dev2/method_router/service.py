@@ -1,4 +1,6 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select
+from app.models import LearningEvent
 from app.modules_dev1.learner_model.models import UserMastery, MisconceptionLog
 from app.modules_dev2.method_router.schemas import (
     DiagnosticGapsResponse, CognitiveDiagnosis, FormulaBranch, 

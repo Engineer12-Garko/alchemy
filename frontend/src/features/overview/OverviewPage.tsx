@@ -26,6 +26,7 @@ function formatDate(value: string) {
 export default function OverviewPage() {
   const [data, setData] = useState<OverviewData | null>(null)
   const [error, setError] = useState('')
+  const [now] = useState(() => Date.now())
 
   useEffect(() => {
     let active = true
@@ -44,7 +45,7 @@ export default function OverviewPage() {
     return () => { active = false }
   }, [])
 
-  const dueReviews = data?.reviews.filter((review) => new Date(review.due_at).getTime() <= Date.now()) ?? []
+  const dueReviews = data?.reviews.filter((review) => new Date(review.due_at).getTime() <= now) ?? []
   const upcomingTasks = data?.tasks.filter((task) => !task.completed).slice(0, 4) ?? []
   const strongestConcepts = [...(data?.progress.mastery ?? [])].sort((a, b) => b.score - a.score).slice(0, 3)
 

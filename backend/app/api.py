@@ -9,13 +9,13 @@ from typing import Annotated, Any
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from pypdf import PdfReader
 
 from app.core.config import get_settings
-from app.core.database import get_db
+from app.core.database import engine, get_db
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.models import Course, LearningEvent, Material, PlannerTask, QuizQuestion, ReviewItem, StudyModuleSession, TutorMessage, User, UserPreferences, utc_now
 from app.modules_dev1.auth.router import get_current_user as require_user
@@ -197,9 +197,9 @@ def _provider_http_error_detail(status_code: int, provider_name: str) -> str:
     return f"{provider_name} provider returned HTTP {status_code}."
 
 
-def configured_ai() -> tuple[str, str, str, str]:
+def configured_ai(provider_override: str | None = None) -> tuple[str, str, str, str]:
     """Select an explicit provider or the best complete configuration."""
-    provider = settings.ai_provider.strip().lower()
+    provider = (provider_override or settings.ai_provider).strip().lower()
     if provider == "auto":
         if settings.openai_base_url and settings.openai_api_key and settings.openai_model:
             provider = "openai"
@@ -229,8 +229,13 @@ def configured_ai() -> tuple[str, str, str, str]:
     return base_url, key, model, provider
 
 
-async def provider_chat(messages: list[dict[str, Any]], temperature: float = 0.3) -> str:
-    base_url, key, model, provider = configured_ai()
+async def provider_chat(
+    messages: list[dict[str, Any]],
+    temperature: float = 0.3,
+    *,
+    provider_override: str | None = None,
+) -> str:
+    base_url, key, model, provider = configured_ai(provider_override)
     
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -299,6 +304,18 @@ async def provider_chat(messages: list[dict[str, Any]], temperature: float = 0.3
         ) from error
     
     if response.is_error:
+        has_gemini_fallback = bool(
+            settings.gemini_model
+            and (settings.gemini_api_key or _is_gemini_key(settings.openai_api_key))
+        )
+        if (
+            response.status_code in (401, 403)
+            and provider == "openai"
+            and provider_override is None
+            and settings.ai_provider.strip().lower() == "auto"
+            and has_gemini_fallback
+        ):
+            return await provider_chat(messages, temperature, provider_override="gemini")
         raise HTTPException(status_code=502, detail=_provider_http_error_detail(response.status_code, "AI"))
     
     try:
@@ -319,7 +336,16 @@ async def provider_chat(messages: list[dict[str, Any]], temperature: float = 0.3
 
 @router.get("/api/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    """Report API readiness only when the persistent data store is reachable."""
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Alchemy API is running, but its database is unavailable.",
+        ) from error
+    return {"status": "ok", "database": "connected"}
 
 
 @router.post("/api/auth/register", status_code=201)

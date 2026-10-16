@@ -295,12 +295,12 @@ async def provider_chat(
                         "text": {
                             "mimeType": "application/json",
                             "schema": {
-                                "type": "OBJECT",
+                                "type": "object",
                                 "properties": {
-                                    "prompt": {"type": "STRING"},
-                                    "concept": {"type": "STRING"},
-                                    "answer": {"type": "STRING"},
-                                    "explanation": {"type": "STRING"},
+                                    "prompt": {"type": "string"},
+                                    "concept": {"type": "string"},
+                                    "answer": {"type": "string"},
+                                    "explanation": {"type": "string"},
                                 },
                                 "required": ["prompt", "concept", "answer", "explanation"],
                             },

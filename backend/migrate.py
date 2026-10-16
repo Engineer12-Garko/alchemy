@@ -23,7 +23,11 @@ import app.modules_dev1.learner_model.models  # noqa: E402,F401
 
 
 def main() -> None:
-    config = Config(str(REPO_ROOT / "alembic.ini"))
+    # The root-level alembic.ini is intentionally excluded from Git, so it is
+    # absent in clean deployment checkouts. Configure the migration script
+    # location directly instead of relying on that local-only file.
+    config = Config()
+    config.set_main_option("script_location", str(BACKEND_ROOT / "alembic"))
     with engine.connect() as connection:
         tables = set(inspect(connection).get_table_names())
 

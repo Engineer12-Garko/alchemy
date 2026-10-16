@@ -281,14 +281,21 @@ async def provider_chat(
                 if not gemini_parts:
                     raise HTTPException(status_code=502, detail="No messages provided for Gemini chat")
 
-                url = f"{base_url}/models/{model}:generateContent?key={key}"
+                # Keep credentials out of URLs: HTTP clients and observability
+                # platforms commonly log request URLs. Gemini's REST API accepts
+                # the API key through this header.
+                url = f"{base_url}/models/{model}:generateContent"
                 json_payload = {
                     "contents": contents,
                     "generationConfig": {"temperature": temperature},
                 }
                 if system_parts:
                     json_payload["systemInstruction"] = {"parts": system_parts}
-                response = await client.post(url, json=json_payload)
+                response = await client.post(
+                    url,
+                    headers={"x-goog-api-key": key},
+                    json=json_payload,
+                )
                     
             else:
                 # OpenAI format (default)

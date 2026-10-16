@@ -234,6 +234,7 @@ async def provider_chat(
     temperature: float = 0.3,
     *,
     provider_override: str | None = None,
+    json_mode: bool = False,
 ) -> str:
     base_url, key, model, provider = configured_ai(provider_override)
     
@@ -289,6 +290,22 @@ async def provider_chat(
                     "contents": contents,
                     "generationConfig": {"temperature": temperature},
                 }
+                if json_mode:
+                    json_payload["generationConfig"]["responseFormat"] = {
+                        "text": {
+                            "mimeType": "application/json",
+                            "schema": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "prompt": {"type": "STRING"},
+                                    "concept": {"type": "STRING"},
+                                    "answer": {"type": "STRING"},
+                                    "explanation": {"type": "STRING"},
+                                },
+                                "required": ["prompt", "concept", "answer", "explanation"],
+                            },
+                        }
+                    }
                 if system_parts:
                     json_payload["systemInstruction"] = {"parts": system_parts}
                 response = await client.post(
@@ -302,7 +319,12 @@ async def provider_chat(
                 response = await client.post(
                     f"{base_url}/chat/completions",
                     headers={"Authorization": f"Bearer {key}"},
-                    json={"model": model, "messages": messages, "temperature": temperature},
+                    json={
+                        "model": model,
+                        "messages": messages,
+                        "temperature": temperature,
+                        **({"response_format": {"type": "json_object"}} if json_mode else {}),
+                    },
                 )
     except httpx.RequestError as error:
         raise HTTPException(
@@ -322,7 +344,12 @@ async def provider_chat(
             and settings.ai_provider.strip().lower() == "auto"
             and has_gemini_fallback
         ):
-            return await provider_chat(messages, temperature, provider_override="gemini")
+            return await provider_chat(
+                messages,
+                temperature,
+                provider_override="gemini",
+                json_mode=json_mode,
+            )
         raise HTTPException(status_code=502, detail=_provider_http_error_detail(response.status_code, "AI"))
     
     try:
@@ -849,9 +876,16 @@ def list_tutor_conversations(user: CurrentUser, db: Db) -> list[str]:
 @router.post("/api/ai/generate-question")
 async def generate_question(user: CurrentUser, db: Db, concept: Annotated[str, Query(min_length=1, max_length=200)]) -> dict[str, str]:
     response = await provider_chat([
-        {"role": "system", "content": "Return a JSON object with non-empty string fields prompt, concept, answer, explanation. No markdown."},
-        {"role": "user", "content": f"Write one university practice question about: {concept}"},
-    ], temperature=0.7)
+        {
+            "role": "system",
+            "content": (
+                "Create one accurate, self-contained university-level practice question. "
+                "Return only a JSON object with non-empty string fields prompt, concept, answer, and explanation. "
+                "The answer must be unambiguous and the explanation must justify it. Do not use markdown fences."
+            ),
+        },
+        {"role": "user", "content": f"Create one practice question about this learner topic: {concept}"},
+    ], temperature=0.7, json_mode=True)
     # Some provider models wrap otherwise valid JSON in a markdown fence or
     # add a short preamble. Extract only a complete JSON object before parsing.
     candidate = response.strip()

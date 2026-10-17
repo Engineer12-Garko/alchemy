@@ -136,7 +136,7 @@ export default function AppLayout() {
           {selectedCourse && <span className="topbar__course"><span className="topbar__course-dot" /> {selectedCourse.code} · {selectedCourse.name}</span>}
           <div className="topbar__actions">
             <button aria-label="Study planner and due tasks" className="icon-button notification-button" onClick={() => navigate('/study-planner')} type="button">
-              <span className="material-symbols-outlined">notifications</span><i />
+              <span className="material-symbols-outlined">notifications</span><span>Due tasks</span><i />
             </button>
             <button aria-label="User profile" className="topbar__avatar" onClick={() => navigate('/settings')} type="button">
               <span className="material-symbols-outlined">person</span>

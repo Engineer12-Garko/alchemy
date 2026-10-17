@@ -1,0 +1,11 @@
+:root{
+  --brand:#0b5d4e; --brand-tint:#e4f1ed;
+  --bg:#f7f9f8; --surface:#ffffff;
+  --border-card:#e1e8e5; --border-input:#d5dedb; --border-side:#e6ebe9; --border-dash:#c5d1cd;
+  --text:#14201c; --text-muted:#55645f; --text-nav:#4b5a55; --text-faint:#6b7a75;
+  --font:'Manrope',system-ui,sans-serif; /* weights 400-800 */
+  --r-nav:10px; --r-input:12px; --r-btn:14px; --r-card:20px; --r-hero:24px; --r-chip:22px;
+  --h-control:52px; --h-nav:44px; --h-chip:44px; --w-sidebar:248px;
+  --fs-h1:32px; --fs-body:16px; --fs-small:14px;
+  --pad-main:56px 64px;
+}
